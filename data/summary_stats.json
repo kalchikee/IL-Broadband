@@ -1,0 +1,16 @@
+{
+  "total_tracts": 3265,
+  "total_population": 12694798,
+  "underserved_population": 750023,
+  "avg_coverage": 90.1,
+  "high_need_tracts": 19,
+  "medium_need_tracts": 196,
+  "low_need_tracts": 1401,
+  "adequate_tracts": 1649,
+  "coverage_by_type": {
+    "urban": 90.6,
+    "suburban": 90.8,
+    "mixed": 89.8,
+    "rural": 87.1
+  }
+}

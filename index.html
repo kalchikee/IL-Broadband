@@ -1,0 +1,2917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Illinois Broadband Gap Analysis Tool</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-dark: #1a365d;
+            --primary-blue: #2c5282;
+            --primary-light: #3182ce;
+            --accent-orange: #ed8936;
+            --accent-red: #e53e3e;
+            --accent-green: #38a169;
+            --bg-light: #f7fafc;
+            --bg-white: #ffffff;
+            --text-dark: #1a202c;
+            --text-gray: #4a5568;
+            --text-light: #718096;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent-orange);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .logo-subtitle {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .header-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .header-btn.primary {
+            background: var(--accent-orange);
+            border-color: var(--accent-orange);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* Left Panel */
+        .left-panel {
+            width: 300px;
+            background: var(--bg-white);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        /* Layer Controls */
+        .layer-option {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .layer-option:hover {
+            background: var(--bg-light);
+        }
+
+        .layer-option.active {
+            background: #ebf8ff;
+            border-color: var(--primary-light);
+        }
+
+        .layer-radio {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .layer-option.active .layer-radio {
+            border-color: var(--primary-light);
+        }
+
+        .layer-option.active .layer-radio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--primary-light);
+            border-radius: 50%;
+        }
+
+        .layer-info h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .layer-info p {
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        /* Filter Controls */
+        .filter-group {
+            margin-bottom: 16px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-value {
+            font-family: 'SF Mono', monospace;
+            font-size: 11px;
+            color: var(--primary-light);
+            background: #ebf8ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .filter-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .filter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* County Select */
+        .county-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: white;
+            cursor: pointer;
+        }
+
+        .county-select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+        }
+
+        /* Map Legend Overlay */
+        .map-legend {
+            position: absolute;
+            bottom: 28px;
+            left: 12px;
+            z-index: 800;
+            background: white;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+            min-width: 180px;
+            pointer-events: none;
+        }
+
+        .legend-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 7px;
+            white-space: nowrap;
+        }
+
+        .legend-gradient {
+            height: 14px;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-light);
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            width: 320px;
+            background: var(--bg-white);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .summary-stats {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            color: white;
+            padding: 16px;
+        }
+
+        .summary-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-card-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .stat-card-label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .chart-container {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chart-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-wrapper {
+            height: 180px;
+        }
+
+        /* Custom Popup */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 280px;
+        }
+
+        .popup-header {
+            background: var(--primary-dark);
+            color: white;
+            padding: 12px 16px;
+        }
+
+        .popup-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .popup-header p {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .popup-body {
+            padding: 12px 16px;
+        }
+
+        .popup-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .popup-stat:last-child {
+            border-bottom: none;
+        }
+
+        .popup-stat-label {
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+
+        .popup-stat-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .popup-stat-value.high {
+            color: var(--accent-red);
+        }
+
+        .popup-stat-value.medium {
+            color: var(--accent-orange);
+        }
+
+        .popup-stat-value.low {
+            color: var(--accent-green);
+        }
+
+        .need-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .need-badge.high {
+            background: #fed7d7;
+            color: var(--accent-red);
+        }
+
+        .need-badge.medium {
+            background: #feebc8;
+            color: #c05621;
+        }
+
+        .need-badge.low {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        /* Export Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: var(--primary-dark);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            background: var(--bg-light);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .modal-btn.secondary {
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-gray);
+        }
+
+        .modal-btn.primary {
+            background: var(--accent-green);
+            border: none;
+            color: white;
+        }
+
+        /* Loading State */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 500;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-light);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Methodology callout */
+        .methodology-callout {
+            background: #ebf8ff;
+            border: 1px solid #bee3f8;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .methodology-callout.open {
+            display: block;
+        }
+
+        .methodology-callout h5 {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--primary-blue);
+            margin-bottom: 8px;
+        }
+
+        .method-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .method-bar {
+            height: 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .method-label {
+            font-size: 11px;
+            color: var(--text-gray);
+            flex: 1;
+        }
+
+        .method-weight {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            width: 30px;
+            text-align: right;
+        }
+
+        .info-toggle {
+            background: none;
+            border: 1px solid var(--primary-light);
+            color: var(--primary-light);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 4px;
+            font-family: inherit;
+        }
+
+        .info-toggle:hover {
+            background: #ebf8ff;
+        }
+
+        /* Impact panel */
+        .impact-panel {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #fffaf0, #fff5f5);
+        }
+
+        .impact-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .impact-stat {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-gray);
+            line-height: 1.4;
+        }
+
+        .impact-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* About modal */
+        .about-modal-body {
+            padding: 20px;
+        }
+
+        .about-section {
+            margin-bottom: 18px;
+        }
+
+        .about-section h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .about-section p {
+            font-size: 13px;
+            color: var(--text-gray);
+            line-height: 1.6;
+        }
+
+        .audience-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .audience-card {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+
+        .audience-card strong {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--primary-blue);
+            margin-bottom: 3px;
+        }
+
+        .formula-grid {
+            display: grid;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .formula-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            background: var(--bg-light);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .formula-pct {
+            font-weight: 700;
+            color: var(--primary-blue);
+            width: 30px;
+        }
+
+        .formula-bar-wrap {
+            flex: 1;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .formula-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .formula-text {
+            font-size: 12px;
+            color: var(--text-gray);
+            width: 180px;
+        }
+
+        .data-badge {
+            display: inline-block;
+            background: #e8f4f8;
+            color: var(--primary-blue);
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-right: 4px;
+        }
+
+        /* Weight Sliders */
+        .weight-total {
+            font-size: 11px;
+            font-weight: 700;
+            color: #38a169;
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .weight-slider::-webkit-slider-thumb {
+            background: #ed8936;
+        }
+
+        /* View toggle */
+        .view-toggle {
+            display: flex;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 9px 0;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            background: white;
+            color: var(--text-gray);
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--primary-dark);
+            color: white;
+        }
+
+        .view-btn:not(.active):hover {
+            background: var(--bg-light);
+        }
+
+        .county-toggle-btn {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            background: #ebf8ff;
+            color: var(--primary-blue);
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+
+        .county-toggle-btn:hover {
+            background: #bee3f8;
+        }
+
+        /* Hover tooltip — single floating div */
+        #hover-tooltip {
+            position: absolute;
+            display: none;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: 'Inter', sans-serif;
+            pointer-events: none;
+            z-index: 900;
+            max-width: 230px;
+        }
+
+        .popup-select-btn {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px 0;
+            background: var(--primary-dark);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .popup-select-btn:hover { background: var(--primary-blue); }
+
+        .popup-select-btn.selected {
+            background: var(--accent-green);
+        }
+
+        .selection-bar {
+            display: none;
+            background: var(--accent-orange);
+            color: white;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .selection-bar.active { display: flex; }
+
+        .selection-bar-clear {
+            background: rgba(255,255,255,0.25);
+            border: none;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .selection-bar-clear:hover { background: rgba(255,255,255,0.4); }
+
+        .county-label-tooltip {
+            background: rgba(26,54,93,0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+        }
+
+        .county-label-tooltip::before {
+            display: none;
+        }
+
+        /* Search bar */
+        .search-bar {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 7px 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 12px;
+            font-family: inherit;
+            width: 220px;
+            transition: all 0.2s;
+        }
+
+        .search-input::placeholder { color: rgba(255,255,255,0.6); }
+        .search-input:focus { outline: none; background: rgba(255,255,255,0.25); }
+
+        .search-btn {
+            padding: 7px 12px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover { background: rgba(255,255,255,0.25); }
+
+        /* Ranked table modal */
+        .table-wrapper { overflow-x: auto; }
+
+        .ranked-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .ranked-table th {
+            background: var(--primary-dark);
+            color: white;
+            padding: 8px 10px;
+            text-align: left;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .ranked-table th:hover { background: var(--primary-blue); }
+
+        .ranked-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ranked-table tr:hover td { background: var(--bg-light); cursor: pointer; }
+
+        .ranked-table tr.highlighted td { background: #ebf8ff; }
+
+        /* Reliability badge */
+        .reliability-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+        }
+
+        .reliability-badge.low      { background: #fed7d7; color: #c53030; }
+        .reliability-badge.moderate { background: #feebc8; color: #c05621; }
+
+        /* Colorblind toggle */
+        .cb-btn {
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: white;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .cb-btn.active { background: #805ad5; border-color: #805ad5; }
+        .cb-btn:hover  { background: rgba(255,255,255,0.25); }
+        .cb-btn.active:hover { background: #6b46c1; }
+
+        /* County Ranking Panel */
+        .county-ranking {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .county-rank-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .county-rank-table th {
+            background: var(--primary-dark);
+            color: white;
+            padding: 6px 7px;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .county-rank-table th:hover { background: var(--primary-blue); }
+
+        .county-rank-table td {
+            padding: 5px 7px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .county-rank-table tr:hover td {
+            background: var(--bg-light);
+            cursor: pointer;
+        }
+
+        .county-rank-scroll {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+
+        @media print {
+            .header, .left-panel, .right-panel, .selection-bar,
+            .modal-overlay, #hover-tooltip, .main-container { display: none !important; }
+            .print-only { display: block !important; }
+            body { margin: 0; background: #fff; }
+            .print-data-table { page-break-before: always; }
+        }
+
+        .print-map-img {
+            width: 100%;
+            height: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin: 10px 0;
+            display: block;
+        }
+
+        .print-legend-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            color: var(--text-gray);
+            margin: 4px 0 12px;
+        }
+
+        .print-legend-bar {
+            height: 12px;
+            width: 180px;
+            border-radius: 3px;
+        }
+
+        .print-only { display: none; }
+
+        .print-header {
+            padding: 12px 20px 8px;
+            border-bottom: 2px solid #1a365d;
+        }
+
+        .print-header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a365d;
+            margin-bottom: 2px;
+        }
+
+        .print-header p { font-size: 11px; color: #4a5568; }
+
+        .print-data-table {
+            width: 100%;
+            padding: 12px 20px;
+        }
+
+        .print-data-table h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a365d;
+            margin-bottom: 8px;
+        }
+
+        .print-data-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+
+        .print-data-table th {
+            background: #1a365d;
+            color: white;
+            padding: 5px 8px;
+            text-align: left;
+        }
+
+        .print-data-table td {
+            padding: 4px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .print-data-table tr:nth-child(even) td { background: #f7fafc; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <div class="logo-icon">IL</div>
+                <div>
+                    <div class="logo-text">Illinois Broadband Gap Analysis</div>
+                    <div class="logo-subtitle">Rural Broadband Access Gap Analysis Tool</div>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" class="search-input" id="search-input"
+                       placeholder="Search address or ZIP..."
+                       onkeydown="if(event.key==='Enter') searchAddress()">
+                <button class="search-btn" onclick="searchAddress()">Search</button>
+            </div>
+            <button class="cb-btn" id="cb-btn" onclick="toggleColorblind()">👁 Colorblind</button>
+            <button class="header-btn" onclick="showRankedTable()">📋 Top Tracts</button>
+            <button class="header-btn" id="share-btn" onclick="shareCurrentView(this)">🔗 Share</button>
+            <button class="header-btn" onclick="doPrint()">🖨️ Print View</button>
+            <button class="header-btn primary" onclick="openExportModal()">📊 Export CSV</button>
+            <button class="header-btn" onclick="showAbout()">ℹ️ About</button>
+        </div>
+    </header>
+
+    <!-- Selection Bar -->
+    <div class="selection-bar" id="selection-bar">
+        <span id="selection-label">0 tracts selected for export</span>
+        <button class="selection-bar-clear" onclick="clearTractSelection()">✕ Clear selection</button>
+    </div>
+
+    <!-- Print header (hidden on screen, visible on print) -->
+    <div class="print-only print-header">
+        <h1>Illinois Broadband Gap Analysis Tool</h1>
+        <p id="print-meta"></p>
+        <img id="print-map-img" class="print-map-img" src="" alt="Illinois Broadband Map">
+        <div class="print-legend-row">
+            <div class="print-legend-bar" id="print-legend-bar"></div>
+            <span id="print-legend-labels"></span>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel -->
+        <aside class="left-panel">
+
+            <!-- View Mode Toggle -->
+            <div class="panel-section">
+                <div class="section-title">Geographic View</div>
+                <div class="view-toggle">
+                    <button class="view-btn active" id="view-btn-tract"  onclick="switchView('tract')">Tract View</button>
+                    <button class="view-btn"        id="view-btn-county" onclick="switchView('county')">County View</button>
+                </div>
+            </div>
+
+            <!-- Layer Toggle -->
+            <div class="panel-section">
+                <div class="section-title">Data Layer</div>
+                <div class="layer-option active" data-layer="need_index" onclick="setLayer('need_index')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>Broadband Need Index</h4>
+                        <p>Composite score (0-100)</p>
+                    </div>
+                </div>
+                <div style="padding: 0 4px 4px;">
+                    <button class="info-toggle" onclick="toggleMethodology(event)">How is this calculated?</button>
+                    <div class="methodology-callout" id="methodology-callout">
+                        <h5>Need Index Formula</h5>
+                        <div class="method-row">
+                            <div class="method-bar" style="width:40px;background:#3182ce;"></div>
+                            <span class="method-label">Broadband coverage gap</span>
+                            <span class="method-weight">40%</span>
+                        </div>
+                        <div class="method-row">
+                            <div class="method-bar" style="width:30px;background:#ed8936;"></div>
+                            <span class="method-label">Median income gap</span>
+                            <span class="method-weight">30%</span>
+                        </div>
+                        <div class="method-row">
+                            <div class="method-bar" style="width:30px;background:#e53e3e;"></div>
+                            <span class="method-label">No internet rate</span>
+                            <span class="method-weight">30%</span>
+                        </div>
+                        <p style="color:#4a5568;font-size:10px;margin-top:6px;">All components normalized to 0–1 before weighting. Higher scores indicate greater infrastructure investment need. Source: ACS 5-Year 2024.</p>
+                    </div>
+                </div>
+                <div class="layer-option" data-layer="coverage" onclick="setLayer('coverage')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>Coverage Percentage</h4>
+                        <p>% with 25/3 Mbps access</p>
+                    </div>
+                </div>
+                <div class="layer-option" data-layer="income" onclick="setLayer('income')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>Median Income</h4>
+                        <p>Household income by tract</p>
+                    </div>
+                </div>
+                <div class="layer-option" data-layer="no_internet" onclick="setLayer('no_internet')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>No Internet Access</h4>
+                        <p>% without subscription</p>
+                    </div>
+                </div>
+                <div class="layer-option" data-layer="poverty" onclick="setLayer('poverty')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>Poverty Rate</h4>
+                        <p>% below federal poverty line</p>
+                    </div>
+                </div>
+                <div class="layer-option" data-layer="change_no_internet" onclick="setLayer('change_no_internet')">
+                    <div class="layer-radio"></div>
+                    <div class="layer-info">
+                        <h4>Change in No Internet</h4>
+                        <p>2019 → 2024 comparison</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Need Index Weights -->
+            <div class="panel-section" id="weight-section">
+                <div class="section-title">Need Index Weights</div>
+                <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">Drag to adjust how each factor contributes. Weights auto-balance to 100%.</p>
+                <div class="weight-total" id="weight-total">Total: 100%</div>
+
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>Coverage Gap</span>
+                        <span class="filter-value" id="weight-coverage-val">40%</span>
+                    </div>
+                    <input type="range" class="filter-slider weight-slider" id="weight-coverage"
+                           min="10" max="70" value="40" oninput="updateWeight('coverage', this.value)">
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>Income Gap</span>
+                        <span class="filter-value" id="weight-income-val">30%</span>
+                    </div>
+                    <input type="range" class="filter-slider weight-slider" id="weight-income"
+                           min="10" max="70" value="30" oninput="updateWeight('income', this.value)">
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>No Internet Rate</span>
+                        <span class="filter-value" id="weight-nointernet-val">30%</span>
+                    </div>
+                    <input type="range" class="filter-slider weight-slider" id="weight-nointernet"
+                           min="10" max="70" value="30" oninput="updateWeight('nointernet', this.value)">
+                </div>
+
+                <button class="info-toggle" onclick="resetWeights()" style="margin-top:4px;">↺ Reset to defaults (40/30/30)</button>
+            </div>
+
+            <!-- Filters -->
+            <div class="panel-section">
+                <div class="section-title">Filters</div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>Min Coverage</span>
+                        <span class="filter-value" id="coverage-value">0%</span>
+                    </div>
+                    <input type="range" class="filter-slider" id="coverage-filter" 
+                           min="0" max="100" value="0" oninput="updateFilter()">
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>Max Income</span>
+                        <span class="filter-value" id="income-value">$150,000</span>
+                    </div>
+                    <input type="range" class="filter-slider" id="income-filter" 
+                           min="20000" max="150000" value="150000" step="5000" oninput="updateFilter()">
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-label">
+                        <span>Min Need Index</span>
+                        <span class="filter-value" id="need-value">0</span>
+                    </div>
+                    <input type="range" class="filter-slider" id="need-filter" 
+                           min="0" max="100" value="0" oninput="updateFilter()">
+                </div>
+            </div>
+
+            <!-- County Filter -->
+            <div class="panel-section">
+                <div class="section-title">County Filter</div>
+                <select class="county-select" id="county-select" onchange="filterByCounty()">
+                    <option value="">All Counties</option>
+                </select>
+            </div>
+
+        </aside>
+
+        <!-- Map -->
+        <main class="map-container">
+            <div id="map"></div>
+            <div id="hover-tooltip"></div>
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <div>Loading data...</div>
+            </div>
+            <div class="map-legend" id="map-legend">
+                <div class="legend-title" id="legend-title">Broadband Need Index</div>
+                <div class="legend-gradient" id="legend-gradient" style="background:linear-gradient(to right,#38a169,#faf089,#ed8936,#e53e3e)"></div>
+                <div class="legend-labels" id="legend-labels">
+                    <span>0 (Low)</span>
+                    <span>50</span>
+                    <span>100 (High)</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <!-- Summary Stats -->
+            <div class="summary-stats">
+                <div class="summary-title">Statewide Summary</div>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-value" id="stat-tracts">--</div>
+                        <div class="stat-card-label">Census Tracts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-value" id="stat-high-need">--</div>
+                        <div class="stat-card-label">High Need Tracts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-value" id="stat-underserved">--</div>
+                        <div class="stat-card-label">Underserved Pop.</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-value" id="stat-coverage">--</div>
+                        <div class="stat-card-label">Avg. Coverage</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage by Area Type Chart -->
+            <div class="chart-container">
+                <div class="chart-title">📊 Coverage by Area Type</div>
+                <div class="chart-wrapper">
+                    <canvas id="coverage-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Need Distribution Chart -->
+            <div class="chart-container">
+                <div class="chart-title">🎯 Tracts by Need Level</div>
+                <div class="chart-wrapper">
+                    <canvas id="need-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Scatter Plot -->
+            <div class="chart-container">
+                <div class="chart-title">🔵 Income vs. Coverage (by Tract)</div>
+                <div class="chart-wrapper" style="height:200px;">
+                    <canvas id="scatter-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- County Ranking -->
+            <div class="county-ranking">
+                <div class="chart-title" style="margin-bottom:10px;">🏆 County Rankings</div>
+                <div class="county-rank-scroll">
+                    <table class="county-rank-table">
+                        <thead>
+                            <tr>
+                                <th onclick="sortCountyRanking('rank')">#</th>
+                                <th onclick="sortCountyRanking('county')">County</th>
+                                <th onclick="sortCountyRanking('need_index')">Need ↕</th>
+                                <th onclick="sortCountyRanking('coverage_pct')">Cov% ↕</th>
+                                <th onclick="sortCountyRanking('no_internet_pct')">No Net ↕</th>
+                                <th onclick="sortCountyRanking('median_income')">Income ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="county-rank-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Storytelling Impact Panel -->
+            <div class="impact-panel">
+                <div class="impact-title">⚡ Why Broadband Access Matters</div>
+                <div class="impact-stat">
+                    <span class="impact-icon">🎓</span>
+                    <span>Students in low-coverage areas lack access to online coursework, digital libraries, and remote learning tools — widening educational inequity.</span>
+                </div>
+                <div class="impact-stat">
+                    <span class="impact-icon">💼</span>
+                    <span>Rural workers without reliable broadband are excluded from remote job opportunities and online business tools that urban residents take for granted.</span>
+                </div>
+                <div class="impact-stat">
+                    <span class="impact-icon">🏥</span>
+                    <span>Telehealth services — critical for rural communities far from hospitals — require minimum 25 Mbps download speeds to function reliably.</span>
+                </div>
+                <div class="impact-stat">
+                    <span class="impact-icon">💰</span>
+                    <span>Federal broadband funding (BEAD Program, ~$42.5B) requires data-driven prioritization. This tool helps identify where investment will have the greatest impact.</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- About Modal -->
+    <div class="modal-overlay" id="about-modal">
+        <div class="modal" style="width:580px;">
+            <div class="modal-header">
+                <h2>ℹ️ About This Tool</h2>
+                <button class="modal-close" onclick="closeAbout()">×</button>
+            </div>
+            <div class="about-modal-body" style="max-height:65vh;overflow-y:auto;">
+                <div class="about-section">
+                    <h3>Purpose</h3>
+                    <p>The <strong>Illinois Broadband Gap Analysis Tool</strong> identifies and visualizes broadband service gaps across 3,263 Illinois census tracts by integrating FCC coverage data with U.S. Census demographic indicators. It supports data-driven infrastructure investment decisions in a state where the Chicago metropolitan area and downstate rural communities face a stark digital divide.</p>
+                </div>
+                <div class="about-section">
+                    <h3>Who Is This For?</h3>
+                    <div class="audience-grid">
+                        <div class="audience-card">
+                            <strong>Infrastructure Planners</strong>
+                            Identify highest-need areas for broadband expansion and prioritize capital investment.
+                        </div>
+                        <div class="audience-card">
+                            <strong>Grant Writers</strong>
+                            Generate evidence-backed data exports for federal BEAD / USDA ReConnect funding applications.
+                        </div>
+                        <div class="audience-card">
+                            <strong>Community Advocates</strong>
+                            Visualize and communicate the digital divide to local officials. Use the Print View for offline advocacy.
+                        </div>
+                        <div class="audience-card">
+                            <strong>Researchers &amp; Policymakers</strong>
+                            Analyze spatial patterns in digital equity and evaluate broadband subsidy programs.
+                        </div>
+                    </div>
+                </div>
+                <div class="about-section">
+                    <h3>Broadband Need Index Methodology</h3>
+                    <p>The composite index (0–100) combines three normalized components. Higher scores indicate greater infrastructure investment need.</p>
+                    <div class="formula-grid" style="margin-top:10px;">
+                        <div class="formula-row">
+                            <span class="formula-pct">40%</span>
+                            <div class="formula-bar-wrap"><div class="formula-bar-fill" style="width:40%;background:#3182ce;"></div></div>
+                            <span class="formula-text">Broadband coverage gap — (100% minus broadband subscription rate)</span>
+                        </div>
+                        <div class="formula-row">
+                            <span class="formula-pct">30%</span>
+                            <div class="formula-bar-wrap"><div class="formula-bar-fill" style="width:30%;background:#ed8936;"></div></div>
+                            <span class="formula-text">Income gap — normalized over $20k–$120k household income range</span>
+                        </div>
+                        <div class="formula-row">
+                            <span class="formula-pct">30%</span>
+                            <div class="formula-bar-wrap"><div class="formula-bar-fill" style="width:30%;background:#e53e3e;"></div></div>
+                            <span class="formula-text">No internet rate — % of households without any internet subscription</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-section">
+                    <h3>Data Sources</h3>
+                    <p>
+                        <span class="data-badge">FCC</span> Broadband Data Collection — county-level 25/3 Mbps coverage (January 2025)<br>
+                        <span class="data-badge">ACS</span> American Community Survey 5-Year 2024 — income, internet subscriptions, population<br>
+                        <span class="data-badge">Census</span> TIGER/Line 2023 — Illinois census tract boundaries<br>
+                    </p>
+                </div>
+                <div class="about-section" style="margin-bottom:0;">
+                    <h3>About the Developer</h3>
+                    <p>Developed by <strong>Ethan Kalchik</strong> | University of Wisconsin–Madison | GEOG 778: Practicum in GIS Development</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn primary" onclick="closeAbout()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print data table (hidden on screen, visible on print) -->
+    <div class="print-only print-data-table">
+        <h3 id="print-table-title">Filtered Tracts</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tract ID</th><th>County</th><th>Area Type</th>
+                    <th>Need Index</th><th>Coverage %</th>
+                    <th>No Internet %</th><th>Med. Income</th><th>Poverty %</th>
+                </tr>
+            </thead>
+            <tbody id="print-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Ranked Tracts Modal -->
+    <div class="modal-overlay" id="ranked-modal">
+        <div class="modal" style="width:660px;">
+            <div class="modal-header">
+                <h2>📋 Top 50 Tracts by Current Layer</h2>
+                <button class="modal-close" onclick="closeRankedTable()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">
+                    Click any column header to sort. Click a row to zoom to that tract.
+                </p>
+                <div class="table-wrapper">
+                    <table class="ranked-table" id="ranked-table">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('rank')">#</th>
+                                <th onclick="sortTable('county')">County</th>
+                                <th onclick="sortTable('tract_id')">Tract ID</th>
+                                <th onclick="sortTable('need_index')">Need Index</th>
+                                <th onclick="sortTable('coverage_pct')">Coverage %</th>
+                                <th onclick="sortTable('no_internet_pct')">No Internet %</th>
+                                <th onclick="sortTable('median_income')">Med. Income</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranked-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeRankedTable()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="export-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📊 Export Data to CSV</h2>
+                <button class="modal-close" onclick="closeExportModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px;">Export <strong id="export-count">0</strong> census tracts to CSV file.</p>
+                <p style="font-size: 13px; color: var(--text-light);">The export will include: Tract ID, County, Coverage %, Median Income, Population, Need Index, and more.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeExportModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="downloadCSV()">⬇️ Download CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    
+    <script>
+        // ── Global state ──────────────────────────────────────────────────────
+        let map, geojsonLayer, countyLayer, geojsonData, summaryStats;
+        let currentLayer = 'need_index';
+        let coverageChart, needChart;
+        let showCounties = true;
+        let mapAnimating = false;
+        let highlightLayer = null;
+
+        // Need Index weights — each 10–70, must sum to 100
+        let weights = { coverage: 40, income: 30, nointernet: 30 };
+
+        // Individual tract export selection
+        let selectedTractIds = new Set();
+
+        // ── Color scales ──────────────────────────────────────────────────────
+        const colorScales = {
+            need_index: {
+                colors: ['#38a169', '#9ae6b4', '#faf089', '#f6ad55', '#ed8936', '#e53e3e'],
+                breaks: [0, 20, 40, 60, 80, 100],
+                labels: ['0 (Low)', '50', '100 (High)'],
+                gradient: 'linear-gradient(to right, #38a169, #faf089, #ed8936, #e53e3e)'
+            },
+            coverage: {
+                colors: ['#e53e3e', '#ed8936', '#faf089', '#9ae6b4', '#38a169'],
+                breaks: [0, 25, 50, 75, 100],
+                labels: ['0%', '50%', '100%'],
+                gradient: 'linear-gradient(to right, #e53e3e, #faf089, #38a169)'
+            },
+            income: {
+                colors: ['#e53e3e', '#ed8936', '#faf089', '#9ae6b4', '#38a169'],
+                breaks: [20000, 40000, 60000, 80000, 100000],
+                labels: ['$20k', '$60k', '$100k+'],
+                gradient: 'linear-gradient(to right, #e53e3e, #faf089, #38a169)'
+            },
+            no_internet: {
+                colors: ['#38a169', '#9ae6b4', '#faf089', '#f6ad55', '#ed8936', '#e53e3e'],
+                breaks: [0, 10, 20, 30, 40, 50],
+                labels: ['0%', '25%', '50%+'],
+                gradient: 'linear-gradient(to right, #38a169, #faf089, #e53e3e)'
+            },
+            poverty: {
+                colors: ['#38a169', '#9ae6b4', '#faf089', '#f6ad55', '#ed8936', '#e53e3e'],
+                breaks: [0, 10, 20, 30, 40, 50],
+                labels: ['0%', '25%', '50%+'],
+                gradient: 'linear-gradient(to right, #38a169, #faf089, #e53e3e)'
+            },
+            change_no_internet: {
+                colors: ['#1a9641', '#a6d96a', '#ffffbf', '#fdae61', '#d7191c'],
+                breaks: [-20, -10, 0, 10, 20],
+                labels: ['Improved', '±0%', 'Worsened'],
+                gradient: 'linear-gradient(to right, #1a9641, #ffffbf, #d7191c)'
+            }
+        };
+
+        // Colorblind-safe scales (RdYlBu from ColorBrewer)
+        const colorScalesCB = {
+            need_index: {
+                colors: ['#4575b4', '#91bfdb', '#fee090', '#fc8d59', '#d73027'],
+                breaks: [0, 20, 40, 60, 80],
+                labels: ['0 (Low)', '50', '100 (High)'],
+                gradient: 'linear-gradient(to right, #4575b4, #fee090, #d73027)'
+            },
+            coverage: {
+                colors: ['#d73027', '#fc8d59', '#fee090', '#91bfdb', '#4575b4'],
+                breaks: [0, 25, 50, 75, 100],
+                labels: ['0%', '50%', '100%'],
+                gradient: 'linear-gradient(to right, #d73027, #fee090, #4575b4)'
+            },
+            income: {
+                colors: ['#d73027', '#fc8d59', '#fee090', '#91bfdb', '#4575b4'],
+                breaks: [20000, 40000, 60000, 80000, 100000],
+                labels: ['$20k', '$60k', '$100k+'],
+                gradient: 'linear-gradient(to right, #d73027, #fee090, #4575b4)'
+            },
+            no_internet: {
+                colors: ['#4575b4', '#91bfdb', '#fee090', '#fc8d59', '#d73027'],
+                breaks: [0, 10, 20, 30, 40],
+                labels: ['0%', '25%', '50%+'],
+                gradient: 'linear-gradient(to right, #4575b4, #fee090, #d73027)'
+            },
+            poverty: {
+                colors: ['#4575b4', '#91bfdb', '#fee090', '#fc8d59', '#d73027'],
+                breaks: [0, 10, 20, 30, 40],
+                labels: ['0%', '25%', '50%+'],
+                gradient: 'linear-gradient(to right, #4575b4, #fee090, #d73027)'
+            },
+            change_no_internet: {
+                colors: ['#1a9641', '#a6d96a', '#ffffbf', '#fc8d59', '#d73027'],
+                breaks: [-20, -10, 0, 10, 20],
+                labels: ['Improved', '±0%', 'Worsened'],
+                gradient: 'linear-gradient(to right, #1a9641, #ffffbf, #d73027)'
+            }
+        };
+
+        let colorblindMode = false;
+        function getActiveScales() { return colorblindMode ? colorScalesCB : colorScales; }
+
+        // ── Map init ──────────────────────────────────────────────────────────
+        function initMap() {
+            map = L.map('map').setView([40.0, -89.0], 6);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19,
+                crossOrigin: 'anonymous'
+            }).addTo(map);
+
+            // Single-feature highlight layer — can never accumulate
+            highlightLayer = L.geoJSON(null, {
+                style: { fillOpacity: 0, weight: 2.5, color: '#1a365d', opacity: 1 },
+                renderer: L.canvas()
+            }).addTo(map);
+
+            map.on('movestart zoomstart', () => {
+                mapAnimating = true;
+                hideTooltip();
+                highlightLayer.clearLayers();
+            });
+            map.on('moveend zoomend', () => { mapAnimating = false; });
+
+            // Keep map from panning too far outside Illinois
+            map.setMaxBounds([[35.5, -93.5], [44.0, -85.0]]);
+
+        }
+
+        // ── Color helpers ─────────────────────────────────────────────────────
+        function getColor(value, layer) {
+            const scale = getActiveScales()[layer] || getActiveScales().need_index;
+            if (value === null || value === undefined) return '#cccccc';
+            for (let i = scale.breaks.length - 1; i >= 0; i--) {
+                if (value >= scale.breaks[i]) return scale.colors[Math.min(i, scale.colors.length - 1)];
+            }
+            return scale.colors[0];
+        }
+
+        function getValue(properties) {
+            switch (currentLayer) {
+                case 'need_index':         return properties.need_index;
+                case 'coverage':           return properties.coverage_pct;
+                case 'income':             return properties.median_income;
+                case 'no_internet':        return properties.no_internet_pct;
+                case 'poverty':            return properties.poverty_pct;
+                case 'change_no_internet': return properties.change_no_internet;
+                default:                   return properties.need_index;
+            }
+        }
+
+        function style(feature) {
+            return {
+                fillColor: getColor(getValue(feature.properties), currentLayer),
+                weight: 0.5,
+                opacity: 1,
+                color: '#718096',
+                fillOpacity: 0.75
+            };
+        }
+
+        // ── Tooltip (hover) ───────────────────────────────────────────────────
+        function createTooltip(p) {
+            const needLabel = p.need_index >= 60 ? '🔴 High' : p.need_index >= 40 ? '🟠 Medium' : '🟢 Low';
+            return `<div style="font-family:Inter,sans-serif;min-width:170px;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:2px;">${p.county} County</div>
+                <div style="color:#718096;font-size:11px;margin-bottom:8px;">Tract ${p.tract_id} &bull; ${p.area_type}</div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="color:#4a5568;font-size:12px;">Need Index</span>
+                    <span style="font-weight:700;font-size:12px;">${p.need_index} ${needLabel}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="color:#4a5568;font-size:12px;">Coverage</span>
+                    <span style="font-weight:600;font-size:12px;">${p.coverage_pct}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="color:#4a5568;font-size:12px;">No Internet</span>
+                    <span style="font-weight:600;font-size:12px;">${p.no_internet_pct}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:#4a5568;font-size:12px;">Poverty Rate</span>
+                    <span style="font-weight:600;font-size:12px;">${p.poverty_pct > 0 ? p.poverty_pct + '%' : 'N/A'}</span>
+                </div>
+                <div style="font-size:10px;color:#a0aec0;margin-top:6px;">Click for full details</div>
+            </div>`;
+        }
+
+        // ── Popup (click) ─────────────────────────────────────────────────────
+        function createPopup(p) {
+            const needClass      = p.need_index >= 60 ? 'high' : p.need_index >= 40 ? 'medium' : 'low';
+            const coverageClass  = p.coverage_pct < 50 ? 'high' : p.coverage_pct < 75 ? 'medium' : 'low';
+            const povertyDisplay = p.poverty_pct > 0 ? `${p.poverty_pct}%` : 'N/A';
+            const isSelected     = selectedTractIds.has(p.tract_id);
+            const btnClass       = isSelected ? 'popup-select-btn selected' : 'popup-select-btn';
+            const btnLabel       = isSelected ? '✓ Added to export — click to remove' : '+ Add to export selection';
+            const relBadge       = p.reliability === 'low'
+                ? '<span class="reliability-badge low">Low sample size</span>'
+                : p.reliability === 'moderate'
+                ? '<span class="reliability-badge moderate">Mod. sample size</span>'
+                : '';
+            const changeRow = p.change_no_internet !== null && p.change_no_internet !== undefined
+                ? `<div class="popup-stat">
+                        <span class="popup-stat-label">Change No Internet (2019→2024)</span>
+                        <span class="popup-stat-value ${p.change_no_internet > 2 ? 'high' : p.change_no_internet < -2 ? 'low' : ''}">${p.change_no_internet > 0 ? '+' : ''}${p.change_no_internet}%</span>
+                    </div>`
+                : '';
+            return `
+                <div class="popup-header">
+                    <h3>${p.county} County ${relBadge}</h3>
+                    <p>Tract ${p.tract_id} &bull; ${p.area_type}</p>
+                </div>
+                <div class="popup-body">
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Broadband Need Index</span>
+                        <span class="need-badge ${needClass}">${p.need_index}</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Coverage</span>
+                        <span class="popup-stat-value ${coverageClass}">${p.coverage_pct}%</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Median Income</span>
+                        <span class="popup-stat-value">$${p.median_income.toLocaleString()}</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Population</span>
+                        <span class="popup-stat-value">${p.population.toLocaleString()}</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">No Internet</span>
+                        <span class="popup-stat-value">${p.no_internet_pct}%</span>
+                    </div>
+                    ${changeRow}
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Poverty Rate</span>
+                        <span class="popup-stat-value">${povertyDisplay}</span>
+                    </div>
+                    <div class="popup-stat">
+                        <span class="popup-stat-label">Providers (est.)</span>
+                        <span class="popup-stat-value">${p.provider_count}</span>
+                    </div>
+                    <button class="${btnClass}" onclick="toggleTractSelection('${p.tract_id}')">${btnLabel}</button>
+                </div>`;
+        }
+
+        // ── Data loading ──────────────────────────────────────────────────────
+        async function loadData() {
+            try {
+                const v = Date.now();
+                const [geoRes, statsRes] = await Promise.all([
+                    fetch(`data/illinois_tracts.geojson?v=${v}`),
+                    fetch(`data/summary_stats.json?v=${v}`)
+                ]);
+                geojsonData  = await geoRes.json();
+                summaryStats = await statsRes.json();
+
+                document.getElementById('loading').style.display = 'none';
+
+                addGeoJSONLayer();
+                updateStats();
+                populateCountySelect();
+                initCharts();
+                loadCountyLayer();
+                updateLegend();
+                buildCountyRanking();
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML = '<div style="color:#e53e3e;">Error loading data</div>';
+            }
+        }
+
+        // ── County boundary layer ─────────────────────────────────────────────
+        async function loadCountyLayer() {
+            try {
+                const res  = await fetch(`data/illinois_counties.geojson?v=${Date.now()}`);
+                const data = await res.json();
+                // Create layer but do NOT add to map — used only as data source
+                // for the county choropleth in County View
+                countyLayer = L.geoJSON(data, { style: { fillOpacity: 0, weight: 0 } });
+            } catch (e) {
+                console.warn('County boundaries not found — run process_data.py first.', e);
+            }
+        }
+
+        // ── Tract GeoJSON layer ───────────────────────────────────────────────
+        function addGeoJSONLayer() {
+            if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+            geojsonLayer = L.geoJSON(geojsonData, {
+                style: style,
+                renderer: L.canvas(),
+                onEachFeature: function(feature, layer) {
+                    layer.bindPopup(createPopup(feature.properties));
+                    layer.on({
+                        mouseover: function(e) {
+                            if (mapAnimating) return;
+                            highlightLayer.clearLayers();
+                            highlightLayer.addData(feature);
+                            showTooltip(createTooltip(feature.properties), e.originalEvent);
+                        },
+                        mousemove: function(e) {
+                            if (mapAnimating) return;
+                            moveTooltip(e.originalEvent);
+                        },
+                        mouseout: function() {
+                            highlightLayer.clearLayers();
+                            hideTooltip();
+                        }
+                    });
+                }
+            }).addTo(map);
+
+            map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+        }
+
+        // ── Need Index weight controls ─────────────────────────────────────────
+        function updateWeight(changed, rawValue) {
+            let newVal = Math.max(10, Math.min(70, Math.round(Number(rawValue))));
+            const others = ['coverage', 'income', 'nointernet'].filter(k => k !== changed);
+            const remaining = 100 - newVal;
+            const oldSum = others.reduce((s, k) => s + weights[k], 0);
+            const newOthers = {};
+
+            others.forEach(k => {
+                newOthers[k] = oldSum > 0
+                    ? Math.max(10, Math.min(70, Math.round(weights[k] * remaining / oldSum)))
+                    : Math.round(remaining / others.length);
+            });
+
+            // Fix any rounding drift so total stays exactly 100
+            let total = newVal + others.reduce((s, k) => s + newOthers[k], 0);
+            let diff  = 100 - total;
+            for (const k of others) {
+                const candidate = newOthers[k] + diff;
+                if (candidate >= 10 && candidate <= 70) { newOthers[k] = candidate; break; }
+            }
+
+            weights[changed] = newVal;
+            others.forEach(k => weights[k] = newOthers[k]);
+
+            // Sync slider UIs
+            ['coverage', 'income', 'nointernet'].forEach(k => {
+                document.getElementById(`weight-${k}`).value = weights[k];
+                document.getElementById(`weight-${k}-val`).textContent = weights[k] + '%';
+            });
+
+            const total2 = Object.values(weights).reduce((s, v) => s + v, 0);
+            const el = document.getElementById('weight-total');
+            el.textContent = `Total: ${total2}%`;
+            el.style.color = total2 === 100 ? '#38a169' : '#e53e3e';
+
+            recalculateNeedIndex();
+            syncMethodologyDisplay();
+        }
+
+        function resetWeights() {
+            weights = { coverage: 40, income: 30, nointernet: 30 };
+            ['coverage', 'income', 'nointernet'].forEach(k => {
+                document.getElementById(`weight-${k}`).value = weights[k];
+                document.getElementById(`weight-${k}-val`).textContent = weights[k] + '%';
+            });
+            const el = document.getElementById('weight-total');
+            el.textContent = 'Total: 100%';
+            el.style.color = '#38a169';
+            recalculateNeedIndex();
+            syncMethodologyDisplay();
+        }
+
+        function recalculateNeedIndex() {
+            if (!geojsonData) return;
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                const gap      = (100 - p.coverage_pct) / 100;
+                const incNorm  = Math.max(0, Math.min(1, (120000 - p.median_income) / 100000));
+                const noIntNorm = Math.min(p.no_internet_pct / 50, 1.0);
+                p.need_index = Math.round(
+                    ((weights.coverage / 100) * gap +
+                     (weights.income   / 100) * incNorm +
+                     (weights.nointernet / 100) * noIntNorm) * 1000
+                ) / 10;
+            });
+            if (currentView === 'tract') {
+                if (geojsonLayer) {
+                    geojsonLayer.eachLayer(layer => {
+                        layer.setPopupContent(createPopup(layer.feature.properties));
+                        layer.setTooltipContent(createTooltip(layer.feature.properties));
+                    });
+                    if (currentLayer === 'need_index') geojsonLayer.setStyle(style);
+                }
+                applyFilters();
+            } else {
+                // County view — rebuild choropleth with updated tract averages
+                buildCountyChoropleth();
+            }
+        }
+
+        function syncMethodologyDisplay() {
+            const mWeights = document.querySelectorAll('.method-weight');
+            const mBars    = document.querySelectorAll('.method-bar');
+            const keys     = ['coverage', 'income', 'nointernet'];
+            keys.forEach((k, i) => {
+                if (mWeights[i]) mWeights[i].textContent = weights[k] + '%';
+                if (mBars[i])    mBars[i].style.width    = weights[k] + 'px';
+            });
+            const fpcts = document.querySelectorAll('.formula-pct');
+            const fbars = document.querySelectorAll('.formula-bar-fill');
+            keys.forEach((k, i) => {
+                if (fpcts[i]) fpcts[i].textContent  = weights[k] + '%';
+                if (fbars[i]) fbars[i].style.width  = weights[k] + '%';
+            });
+        }
+
+        // ── View mode (Tract vs County) ───────────────────────────────────────
+        let currentView = 'tract';
+        let countyStatsMap = {};   // county name -> aggregated stats
+        let countyChoroLayer = null;
+
+        function switchView(view) {
+            currentView = view;
+
+            document.getElementById('view-btn-tract').classList.toggle('active',  view === 'tract');
+            document.getElementById('view-btn-county').classList.toggle('active', view === 'county');
+
+            document.getElementById('weight-section').style.display =
+                currentLayer === 'need_index' ? 'block' : 'none';
+
+            if (view === 'tract') {
+                // County view → Tract view: remove county choropleth, show tracts only
+                if (countyChoroLayer) { map.removeLayer(countyChoroLayer); countyChoroLayer = null; }
+                if (geojsonLayer) geojsonLayer.addTo(map);
+            } else {
+                // Tract view → County view: remove tracts, show county choropleth only
+                if (geojsonLayer) map.removeLayer(geojsonLayer);
+                buildCountyChoropleth();
+            }
+        }
+
+        function computeCountyStats() {
+            // Aggregate tract stats by county name
+            const byCounty = {};
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                const c = p.county;
+                if (!byCounty[c]) byCounty[c] = { coverage: [], need: [], income: [], no_internet: [], poverty: [], pop: [], change: [] };
+                byCounty[c].coverage.push(p.coverage_pct);
+                byCounty[c].need.push(p.need_index);
+                byCounty[c].income.push(p.median_income);
+                byCounty[c].no_internet.push(p.no_internet_pct);
+                byCounty[c].poverty.push(p.poverty_pct);
+                byCounty[c].pop.push(p.population);
+                if (p.change_no_internet !== null && p.change_no_internet !== undefined)
+                    byCounty[c].change.push(p.change_no_internet);
+            });
+            const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+            const result = {};
+            Object.entries(byCounty).forEach(([name, d]) => {
+                result[name] = {
+                    coverage_pct:       +avg(d.coverage).toFixed(1),
+                    need_index:         +avg(d.need).toFixed(1),
+                    median_income:      +avg(d.income).toFixed(0),
+                    no_internet_pct:    +avg(d.no_internet).toFixed(1),
+                    poverty_pct:        +avg(d.poverty).toFixed(1),
+                    population:         d.pop.reduce((s, v) => s + v, 0),
+                    tract_count:        d.coverage.length,
+                    change_no_internet: d.change.length ? +avg(d.change).toFixed(1) : null,
+                };
+            });
+            return result;
+        }
+
+        function buildCountyChoropleth() {
+            if (countyChoroLayer) { map.removeLayer(countyChoroLayer); countyChoroLayer = null; }
+            if (!countyLayer) return;
+
+            countyStatsMap = computeCountyStats();
+
+            // Clone county GeoJSON and attach aggregated stats as properties
+            const enriched = {
+                type: 'FeatureCollection',
+                features: countyLayer.toGeoJSON().features.map(f => {
+                    const stats = countyStatsMap[f.properties.county] || {};
+                    return { ...f, properties: { ...f.properties, ...stats } };
+                })
+            };
+
+            countyChoroLayer = L.geoJSON(enriched, {
+                style: function(feature) {
+                    const val = getCountyValue(feature.properties);
+                    return {
+                        fillColor: getColor(val, currentLayer),
+                        weight: 1.5,
+                        color: '#1a365d',
+                        opacity: 0.9,
+                        fillOpacity: 0.8
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const p = feature.properties;
+                    layer.bindPopup(`
+                        <div class="popup-header">
+                            <h3>${p.county} County</h3>
+                            <p>${p.tract_count} census tracts &bull; County average</p>
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Avg Need Index</span>
+                                <span class="need-badge ${p.need_index >= 60 ? 'high' : p.need_index >= 40 ? 'medium' : 'low'}">${p.need_index}</span>
+                            </div>
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Avg Coverage</span>
+                                <span class="popup-stat-value">${p.coverage_pct}%</span>
+                            </div>
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Avg Median Income</span>
+                                <span class="popup-stat-value">$${Math.round(p.median_income).toLocaleString()}</span>
+                            </div>
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Avg No Internet</span>
+                                <span class="popup-stat-value">${p.no_internet_pct}%</span>
+                            </div>
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Avg Poverty Rate</span>
+                                <span class="popup-stat-value">${p.poverty_pct}%</span>
+                            </div>
+                            <div class="popup-stat">
+                                <span class="popup-stat-label">Total Population</span>
+                                <span class="popup-stat-value">${p.population.toLocaleString()}</span>
+                            </div>
+                            <button class="popup-select-btn" onclick="selectCountyForExport('${p.county}')">
+                                Select ${p.tract_count} tracts for export
+                            </button>
+                        </div>
+                    `);
+                    layer.on({
+                        mouseover: function(e) {
+                            if (mapAnimating) return;
+                            e.target.setStyle({ weight: 3, fillOpacity: 0.95 });
+                            showTooltip(`<div style="font-family:Inter,sans-serif;min-width:160px;">
+                                <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${p.county} County</div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                                    <span style="color:#4a5568;font-size:12px;">Avg Need Index</span>
+                                    <span style="font-weight:700;font-size:12px;">${p.need_index}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                                    <span style="color:#4a5568;font-size:12px;">Avg Coverage</span>
+                                    <span style="font-weight:600;font-size:12px;">${p.coverage_pct}%</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#4a5568;font-size:12px;">${p.tract_count} tracts</span>
+                                    <span style="font-weight:600;font-size:12px;">${p.population.toLocaleString()} pop.</span>
+                                </div>
+                            </div>`, e.originalEvent);
+                        },
+                        mousemove: function(e) { moveTooltip(e.originalEvent); },
+                        mouseout:  function(e) { countyChoroLayer.resetStyle(e.target); hideTooltip(); }
+                    });
+                }
+            }).addTo(map);
+        }
+
+        function getCountyValue(p) {
+            switch (currentLayer) {
+                case 'need_index':         return p.need_index;
+                case 'coverage':           return p.coverage_pct;
+                case 'income':             return p.median_income;
+                case 'no_internet':        return p.no_internet_pct;
+                case 'poverty':            return p.poverty_pct;
+                case 'change_no_internet': return p.change_no_internet;
+                default:                   return p.need_index;
+            }
+        }
+
+        // ── Layer switching ───────────────────────────────────────────────────
+        function setLayer(layer) {
+            currentLayer = layer;
+            document.querySelectorAll('.layer-option').forEach(el => el.classList.remove('active'));
+            const el = document.querySelector(`[data-layer="${layer}"]`);
+            if (el) el.classList.add('active');
+            document.getElementById('weight-section').style.display =
+                layer === 'need_index' ? 'block' : 'none';
+            updateLegend();
+            if (currentView === 'tract') {
+                if (geojsonLayer) geojsonLayer.setStyle(style);
+            } else {
+                buildCountyChoropleth();
+            }
+        }
+
+        function updateLegend() {
+            const scale  = getActiveScales()[currentLayer] || getActiveScales().need_index;
+            const titles = {
+                need_index:         'Broadband Need Index',
+                coverage:           'Coverage %',
+                income:             'Median Income',
+                no_internet:        'No Internet Access %',
+                poverty:            'Poverty Rate %',
+                change_no_internet: 'Change in No Internet (2019–2024)'
+            };
+            document.getElementById('legend-title').textContent = titles[currentLayer] || '';
+            document.getElementById('legend-gradient').style.background = scale.gradient;
+            document.getElementById('legend-labels').innerHTML =
+                scale.labels.map(l => `<span>${l}</span>`).join('');
+        }
+
+        // ── Filters ───────────────────────────────────────────────────────────
+        function updateFilter() {
+            const coverageVal = document.getElementById('coverage-filter').value;
+            const incomeVal   = document.getElementById('income-filter').value;
+            const needVal     = document.getElementById('need-filter').value;
+            document.getElementById('coverage-value').textContent = `${coverageVal}%`;
+            document.getElementById('income-value').textContent   = `$${parseInt(incomeVal).toLocaleString()}`;
+            document.getElementById('need-value').textContent     = needVal;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const minCoverage = parseInt(document.getElementById('coverage-filter').value);
+            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const minNeed     = parseInt(document.getElementById('need-filter').value);
+            const county      = document.getElementById('county-select').value;
+            if (!geojsonLayer) return;
+            geojsonLayer.eachLayer(layer => {
+                const p = layer.feature.properties;
+                const visible = p.coverage_pct >= minCoverage &&
+                                p.median_income <= maxIncome &&
+                                p.need_index    >= minNeed &&
+                                (county === '' || p.county === county);
+                layer.setStyle(visible
+                    ? { fillOpacity: 0.75, opacity: 1 }
+                    : { fillOpacity: 0.05, opacity: 0.2 });
+            });
+            updateFilteredStats();
+        }
+
+        function filterByCounty() {
+            const county = document.getElementById('county-select').value;
+            applyFilters();
+            if (county && geojsonLayer) {
+                const features = geojsonData.features.filter(f => f.properties.county === county);
+                if (features.length > 0)
+                    map.flyToBounds(L.geoJSON({ type: 'FeatureCollection', features }).getBounds(), { padding: [50, 50] });
+            } else if (geojsonLayer) {
+                map.flyToBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+            }
+        }
+
+        function populateCountySelect() {
+            const counties = [...new Set(geojsonData.features.map(f => f.properties.county))].sort();
+            const select   = document.getElementById('county-select');
+            counties.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.textContent = c;
+                select.appendChild(opt);
+            });
+        }
+
+        // ── Stats ─────────────────────────────────────────────────────────────
+        function updateStats() {
+            document.getElementById('stat-tracts').textContent =
+                summaryStats.total_tracts.toLocaleString();
+            document.getElementById('stat-high-need').textContent =
+                summaryStats.high_need_tracts.toLocaleString();
+            document.getElementById('stat-underserved').textContent =
+                (summaryStats.underserved_population / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-coverage').textContent =
+                summaryStats.avg_coverage + '%';
+        }
+
+        function updateFilteredStats() {
+            const minCoverage = parseInt(document.getElementById('coverage-filter').value);
+            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const minNeed     = parseInt(document.getElementById('need-filter').value);
+            const county      = document.getElementById('county-select').value;
+            const filtered    = geojsonData.features.filter(f => {
+                const p = f.properties;
+                return p.coverage_pct >= minCoverage &&
+                       p.median_income <= maxIncome &&
+                       p.need_index    >= minNeed &&
+                       (county === '' || p.county === county);
+            });
+            const highNeed    = filtered.filter(f => f.properties.need_index >= 60).length;
+            const underserved = filtered.reduce((s, f) =>
+                f.properties.coverage_pct < 80 ? s + f.properties.population : s, 0);
+            const avgCoverage = filtered.length > 0
+                ? (filtered.reduce((s, f) => s + f.properties.coverage_pct, 0) / filtered.length).toFixed(1)
+                : 0;
+            document.getElementById('stat-tracts').textContent      = filtered.length.toLocaleString();
+            document.getElementById('stat-high-need').textContent   = highNeed.toLocaleString();
+            document.getElementById('stat-underserved').textContent = (underserved / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-coverage').textContent    = avgCoverage + '%';
+        }
+
+        // ── Charts ────────────────────────────────────────────────────────────
+        function initCharts() {
+            coverageChart = new Chart(document.getElementById('coverage-chart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Urban', 'Suburban', 'Mixed', 'Rural'],
+                    datasets: [{
+                        label: 'Coverage %',
+                        data: [
+                            summaryStats.coverage_by_type.urban,
+                            summaryStats.coverage_by_type.suburban,
+                            summaryStats.coverage_by_type.mixed,
+                            summaryStats.coverage_by_type.rural
+                        ],
+                        backgroundColor: ['#3182ce', '#4299e1', '#63b3ed', '#90cdf4'],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#e2e8f0' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            needChart = new Chart(document.getElementById('need-chart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Need', 'Medium Need', 'Low Need', 'Adequate'],
+                    datasets: [{
+                        data: [
+                            summaryStats.high_need_tracts,
+                            summaryStats.medium_need_tracts,
+                            summaryStats.low_need_tracts,
+                            summaryStats.adequate_tracts
+                        ],
+                        backgroundColor: ['#e53e3e', '#ed8936', '#faf089', '#38a169']
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } }
+                }
+            });
+
+            // Scatter plot — income vs coverage
+            const scatterPts = geojsonData.features.map(f => ({
+                x: f.properties.median_income,
+                y: f.properties.coverage_pct
+            }));
+            const scatterColors = geojsonData.features.map(f =>
+                f.properties.need_index >= 60 ? 'rgba(229,62,62,0.55)' :
+                f.properties.need_index >= 40 ? 'rgba(237,137,54,0.55)' :
+                                                'rgba(56,161,105,0.45)'
+            );
+            new Chart(document.getElementById('scatter-chart').getContext('2d'), {
+                type: 'scatter',
+                data: { datasets: [{ data: scatterPts, backgroundColor: scatterColors, pointRadius: 2.5, pointHoverRadius: 4 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: c => `$${c.parsed.x.toLocaleString()} | ${c.parsed.y}% coverage` } }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Median Income ($)', font: { size: 10 } }, grid: { color: '#e2e8f0' },
+                             ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { size: 9 } } },
+                        y: { title: { display: true, text: 'Coverage %', font: { size: 10 } },
+                             min: 0, max: 100, grid: { color: '#e2e8f0' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        // ── County Ranking ────────────────────────────────────────────────────
+        let countyRankData = [];
+        let countyRankCol = 'need_index';
+        let countyRankDir = -1;
+
+        function buildCountyRanking() {
+            const stats = computeCountyStats();
+            countyRankData = Object.entries(stats).map(([name, s]) => ({ county: name, ...s }));
+            renderCountyRanking();
+        }
+
+        function renderCountyRanking() {
+            const sorted = [...countyRankData].sort((a, b) => {
+                const va = a[countyRankCol], vb = b[countyRankCol];
+                if (va === null || va === undefined) return 1;
+                if (vb === null || vb === undefined) return -1;
+                if (typeof va === 'string') return va.localeCompare(vb) * countyRankDir;
+                return (va - vb) * countyRankDir;
+            });
+            document.getElementById('county-rank-tbody').innerHTML = sorted.map((c, i) => {
+                const nc = c.need_index >= 60 ? 'high' : c.need_index >= 40 ? 'medium' : 'low';
+                return `<tr onclick="zoomToCountyByName('${c.county}')">
+                    <td>${i + 1}</td>
+                    <td>${c.county}</td>
+                    <td><span class="need-badge ${nc}">${c.need_index}</span></td>
+                    <td>${c.coverage_pct}%</td>
+                    <td>${c.no_internet_pct}%</td>
+                    <td>$${Math.round(c.median_income / 1000)}k</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sortCountyRanking(col) {
+            if (col === 'rank') { countyRankCol = 'need_index'; countyRankDir = -1; }
+            else {
+                if (countyRankCol === col) countyRankDir *= -1;
+                else { countyRankCol = col; countyRankDir = col === 'county' ? 1 : -1; }
+            }
+            renderCountyRanking();
+        }
+
+        function zoomToCountyByName(name) {
+            document.getElementById('county-select').value = name;
+            filterByCounty();
+        }
+
+        // ── Print view ────────────────────────────────────────────────────────
+        function doPrint() {
+            // 1. Populate meta
+            const features = getFilteredFeatures();
+            const county   = document.getElementById('county-select').value || 'All Counties';
+            document.getElementById('print-meta').textContent =
+                `Layer: ${currentLayer} | View: ${currentView} | Filter: ${county} | ${features.length} tracts | Printed ${new Date().toLocaleDateString()}`;
+
+            // 2. Populate data table
+            document.getElementById('print-table-title').textContent =
+                `Tract Data (${Math.min(features.length, 150)} of ${features.length} tracts)`;
+            document.getElementById('print-tbody').innerHTML = features.slice(0, 150).map(f => {
+                const p = f.properties;
+                return `<tr>
+                    <td>${p.tract_id}</td><td>${p.county}</td><td>${p.area_type}</td>
+                    <td>${p.need_index}</td><td>${p.coverage_pct}%</td>
+                    <td>${p.no_internet_pct}%</td><td>$${p.median_income.toLocaleString()}</td>
+                    <td>${p.poverty_pct}%</td>
+                </tr>`;
+            }).join('');
+
+            // 3. Legend
+            const scale = getActiveScales()[currentLayer] || getActiveScales().need_index;
+            document.getElementById('print-legend-bar').style.background = scale.gradient;
+            document.getElementById('print-legend-labels').textContent   = scale.labels.join('  —  ');
+
+            // 4. Snap map to Illinois and wait for render
+            map.setMaxBounds(null);
+            map.setView([40.0, -89.3], 7, { animate: false });
+
+            // 5. Wait for tiles + choropleth to paint, then do direct canvas capture
+            setTimeout(() => {
+                captureMapCanvas().then(dataUrl => {
+                    if (dataUrl) {
+                        document.getElementById('print-map-img').src = dataUrl;
+                    }
+                    window.print();
+                    map.setMaxBounds([[35.5, -93.5], [44.0, -85.0]]);
+                });
+            }, 900);
+        }
+
+        function captureMapCanvas() {
+            return new Promise(resolve => {
+                // Fixed canvas — no dependency on live DOM dimensions
+                const W = 860, H = 620;
+                const ZOOM = 7;
+                const CENTER_LAT = 40.0, CENTER_LNG = -89.3;
+
+                const out = document.createElement('canvas');
+                out.width  = W;
+                out.height = H;
+                const ctx  = out.getContext('2d');
+
+                ctx.fillStyle = '#eae6df';
+                ctx.fillRect(0, 0, W, H);
+
+                if (!geojsonData || !geojsonData.features) {
+                    resolve(null);
+                    return;
+                }
+
+                // Use Leaflet's CRS directly — works regardless of live map state
+                const crs = L.CRS.EPSG3857;
+                const centerPx = crs.latLngToPoint(L.latLng(CENTER_LAT, CENTER_LNG), ZOOM);
+
+                function project(coord) {
+                    // coord = [lng, lat]
+                    const px = crs.latLngToPoint(L.latLng(coord[1], coord[0]), ZOOM);
+                    return {
+                        x: W / 2 + (px.x - centerPx.x),
+                        y: H / 2 + (px.y - centerPx.y)
+                    };
+                }
+
+                geojsonData.features.forEach(feature => {
+                    const s = style(feature);
+                    const fillColor   = s.fillColor  || '#cccccc';
+                    const fillOpacity = (s.fillOpacity !== undefined) ? s.fillOpacity : 0.75;
+                    const strokeColor = s.color       || '#718096';
+                    const strokeWidth = s.weight      || 0.5;
+
+                    const geom = feature.geometry;
+                    if (!geom) return;
+
+                    const polys = geom.type === 'Polygon'
+                        ? [geom.coordinates]
+                        : geom.coordinates;
+
+                    polys.forEach(polygon => {
+                        polygon.forEach(ring => {
+                            ctx.beginPath();
+                            ring.forEach((coord, i) => {
+                                const pt = project(coord);
+                                if (i === 0) ctx.moveTo(pt.x, pt.y);
+                                else         ctx.lineTo(pt.x, pt.y);
+                            });
+                            ctx.closePath();
+
+                            ctx.globalAlpha = fillOpacity;
+                            ctx.fillStyle   = fillColor;
+                            ctx.fill();
+
+                            ctx.globalAlpha = 1;
+                            ctx.strokeStyle = strokeColor;
+                            ctx.lineWidth   = strokeWidth;
+                            ctx.stroke();
+                        });
+                    });
+                });
+
+                ctx.globalAlpha = 1;
+                try {
+                    resolve(out.toDataURL('image/png'));
+                } catch(e) {
+                    resolve(null);
+                }
+            });
+        }
+
+        // ── Tract export selection ────────────────────────────────────────────
+        function toggleTractSelection(tractId) {
+            if (selectedTractIds.has(tractId)) {
+                selectedTractIds.delete(tractId);
+            } else {
+                selectedTractIds.add(tractId);
+            }
+
+            // Update the tract's popup content and highlight style
+            geojsonLayer.eachLayer(layer => {
+                if (layer.feature.properties.tract_id === tractId) {
+                    layer.setPopupContent(createPopup(layer.feature.properties));
+                    if (selectedTractIds.has(tractId)) {
+                        layer.setStyle({ weight: 2.5, color: '#ed8936', fillOpacity: 0.95 });
+                    } else {
+                        geojsonLayer.resetStyle(layer);
+                    }
+                }
+            });
+
+            updateSelectionBar();
+        }
+
+        function clearTractSelection() {
+            selectedTractIds.clear();
+            // Reset all tract styles and popup buttons
+            if (geojsonLayer) {
+                geojsonLayer.eachLayer(layer => {
+                    geojsonLayer.resetStyle(layer);
+                    layer.setPopupContent(createPopup(layer.feature.properties));
+                });
+            }
+            updateSelectionBar();
+        }
+
+        function updateSelectionBar() {
+            const bar   = document.getElementById('selection-bar');
+            const label = document.getElementById('selection-label');
+            const count = selectedTractIds.size;
+            if (count > 0) {
+                bar.classList.add('active');
+                label.textContent = `${count} tract${count > 1 ? 's' : ''} selected for export`;
+            } else {
+                bar.classList.remove('active');
+            }
+        }
+
+        // ── County export selection ───────────────────────────────────────────
+        function selectCountyForExport(countyName) {
+            const select = document.getElementById('county-select');
+            select.value = countyName;
+
+            // Close the popup
+            map.closePopup();
+
+            // Show confirmation in the export button area
+            const tractCount = geojsonData.features.filter(
+                f => f.properties.county === countyName
+            ).length;
+
+            const btn = document.querySelector('.header-btn.primary');
+            const original = btn.innerHTML;
+            btn.innerHTML = `✅ ${countyName} (${tractCount} tracts)`;
+            btn.style.background = 'var(--accent-green)';
+            btn.style.borderColor = 'var(--accent-green)';
+
+            // Restore after 3 seconds
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.style.background = '';
+                btn.style.borderColor = '';
+            }, 3000);
+        }
+
+        // ── Export ────────────────────────────────────────────────────────────
+        function getFilteredFeatures() {
+            // If individual tracts are selected, export only those
+            if (selectedTractIds.size > 0) {
+                return geojsonData.features.filter(f => selectedTractIds.has(f.properties.tract_id));
+            }
+            // Otherwise use the panel filters
+            const minCoverage = parseInt(document.getElementById('coverage-filter').value);
+            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const minNeed     = parseInt(document.getElementById('need-filter').value);
+            const county      = document.getElementById('county-select').value;
+            return geojsonData.features.filter(f => {
+                const p = f.properties;
+                return p.coverage_pct >= minCoverage &&
+                       p.median_income <= maxIncome &&
+                       p.need_index    >= minNeed &&
+                       (county === '' || p.county === county);
+            });
+        }
+
+        function openExportModal() {
+            document.getElementById('export-count').textContent = getFilteredFeatures().length;
+            document.getElementById('export-modal').classList.add('active');
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.remove('active');
+        }
+
+        function downloadCSV() {
+            const features = getFilteredFeatures();
+            const headers  = ['Tract ID','County','State','Coverage %','Median Income',
+                              'Population','No Internet %','Poverty %','Provider Count',
+                              'Need Index','Area Type',
+                              'Wt: Coverage Gap','Wt: Income Gap','Wt: No Internet'];
+            const rows = features.map(f => {
+                const p = f.properties;
+                return [p.tract_id, p.county, p.state, p.coverage_pct, p.median_income,
+                        p.population, p.no_internet_pct, p.poverty_pct, p.provider_count,
+                        p.need_index, p.area_type,
+                        weights.coverage, weights.income, weights.nointernet];
+            });
+            const csv  = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url;
+            a.download = `il_broadband_export_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            closeExportModal();
+        }
+
+        // ── Modals & misc ─────────────────────────────────────────────────────
+        function showAbout()  { document.getElementById('about-modal').classList.add('active'); }
+        function closeAbout() { document.getElementById('about-modal').classList.remove('active'); }
+
+        function toggleMethodology(e) {
+            e.stopPropagation();
+            const panel = document.getElementById('methodology-callout');
+            const isOpen = panel.classList.toggle('open');
+            e.target.textContent = isOpen ? 'Hide methodology' : 'How is this calculated?';
+        }
+
+        // ── Singleton hover tooltip ───────────────────────────────────────────────
+        const _tt = () => document.getElementById('hover-tooltip');
+
+        function showTooltip(html, mouseEvent) {
+            const el = _tt();
+            el.innerHTML = html;
+            el.style.display = 'block';
+            moveTooltip(mouseEvent);
+        }
+
+        function moveTooltip(mouseEvent) {
+            const el = _tt();
+            if (el.style.display === 'none') return;
+            const container = el.parentElement.getBoundingClientRect();
+            let x = mouseEvent.clientX - container.left + 14;
+            let y = mouseEvent.clientY - container.top  + 14;
+            // Flip left if too close to right edge
+            if (x + el.offsetWidth + 20 > container.width)  x -= el.offsetWidth + 28;
+            // Flip up if too close to bottom edge
+            if (y + el.offsetHeight + 10 > container.height) y -= el.offsetHeight + 28;
+            el.style.left = x + 'px';
+            el.style.top  = y + 'px';
+        }
+
+        function hideTooltip() {
+            _tt().style.display = 'none';
+        }
+
+        // ── Point-in-polygon (ray casting) ───────────────────────────────────────
+        function pointInPolygon(lat, lng, feature) {
+            const geom = feature.geometry;
+            const polys = geom.type === 'MultiPolygon' ? geom.coordinates : [geom.coordinates];
+            return polys.some(poly =>
+                poly.some((ring, i) => i === 0 ? ringContains(lat, lng, ring) : !ringContains(lat, lng, ring))
+            );
+        }
+
+        function ringContains(lat, lng, ring) {
+            let inside = false;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                const xi = ring[i][0], yi = ring[i][1];
+                const xj = ring[j][0], yj = ring[j][1];
+                if (((yi > lat) !== (yj > lat)) &&
+                    (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        // ── Colorblind toggle ─────────────────────────────────────────────────
+        function toggleColorblind() {
+            colorblindMode = !colorblindMode;
+            const btn = document.getElementById('cb-btn');
+            btn.classList.toggle('active', colorblindMode);
+            btn.textContent = colorblindMode ? '👁 Normal Colors' : '👁 Colorblind';
+            updateLegend();
+            if (currentView === 'tract') {
+                if (geojsonLayer) geojsonLayer.setStyle(style);
+            } else {
+                buildCountyChoropleth();
+            }
+        }
+
+        // ── Address search (Nominatim) ────────────────────────────────────────
+        let searchMarker = null;
+
+        const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN_HERE';
+
+        async function searchAddress() {
+            const query = document.getElementById('search-input').value.trim();
+            if (!query) return;
+
+            let latlng = null, label = query;
+
+            try {
+                const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`
+                          + `?access_token=${MAPBOX_TOKEN}&country=us&bbox=-91.513,36.970,-87.019,42.508&limit=1`;
+                const res  = await fetch(url);
+                const data = await res.json();
+                const hit  = data?.features?.[0];
+                if (hit) {
+                    latlng = L.latLng(hit.center[1], hit.center[0]);
+                    label  = hit.place_name;
+                }
+            } catch(e) {
+                alert('Search failed. Check your internet connection.');
+                return;
+            }
+
+            if (!latlng) {
+                alert('Address not found. Include city and state, e.g. "1737 S Desplaines St, Chicago, IL".');
+                return;
+            }
+
+            if (searchMarker) map.removeLayer(searchMarker);
+            searchMarker = L.circleMarker(latlng, {
+                radius: 10, color: '#ed8936', fillColor: '#ed8936',
+                fillOpacity: 0.9, weight: 3
+            }).addTo(map).bindTooltip(label, { permanent: false });
+            map.flyTo(latlng, 13);
+
+            // Highlight the containing tract using exact point-in-polygon
+            if (currentView === 'tract' && geojsonLayer) {
+                let found = null;
+                geojsonLayer.eachLayer(layer => {
+                    if (!found && pointInPolygon(latlng.lat, latlng.lng, layer.feature)) {
+                        found = layer;
+                    }
+                });
+                if (found) {
+                    found.setStyle({ weight: 3, color: '#ed8936', fillOpacity: 0.95 });
+                    found.openPopup();
+                }
+            }
+        }
+
+        // ── Ranked Tract Table ────────────────────────────────────────────────
+        let rankSortCol = 'need_index';
+        let rankSortDir = -1;
+
+        function showRankedTable() {
+            rankSortCol = 'need_index';
+            rankSortDir = -1;
+            const top50 = [...geojsonData.features]
+                .sort((a, b) => b.properties.need_index - a.properties.need_index)
+                .slice(0, 50);
+            renderRankedTable(top50);
+            document.getElementById('ranked-modal').classList.add('active');
+        }
+
+        function renderRankedTable(features) {
+            const tbody = document.getElementById('ranked-tbody');
+            tbody.innerHTML = features.map((f, i) => {
+                const p = f.properties;
+                const needClass = p.need_index >= 60 ? 'high' : p.need_index >= 40 ? 'medium' : 'low';
+                const relBadge  = p.reliability === 'low'
+                    ? '<span class="reliability-badge low">Low</span>'
+                    : p.reliability === 'moderate'
+                    ? '<span class="reliability-badge moderate">Mod</span>'
+                    : '';
+                return `<tr onclick="zoomToTract('${p.tract_id}')" title="Click to zoom to this tract">
+                    <td>${i + 1}</td>
+                    <td>${p.county}</td>
+                    <td>${p.tract_id} ${relBadge}</td>
+                    <td><span class="need-badge ${needClass}">${p.need_index}</span></td>
+                    <td>${p.coverage_pct}%</td>
+                    <td>${p.no_internet_pct}%</td>
+                    <td>$${p.median_income.toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sortTable(col) {
+            if (col === 'rank') {
+                rankSortCol = 'need_index';
+                rankSortDir = -1;
+            } else {
+                if (rankSortCol === col) rankSortDir *= -1;
+                else { rankSortCol = col; rankSortDir = col === 'county' || col === 'tract_id' ? 1 : -1; }
+            }
+            const sorted = [...geojsonData.features].sort((a, b) => {
+                const va = a.properties[rankSortCol], vb = b.properties[rankSortCol];
+                if (va === null || va === undefined) return 1;
+                if (vb === null || vb === undefined) return -1;
+                if (typeof va === 'string') return va.localeCompare(vb) * rankSortDir;
+                return (va - vb) * rankSortDir;
+            }).slice(0, 50);
+            renderRankedTable(sorted);
+        }
+
+        function zoomToTract(tractId) {
+            closeRankedTable();
+            if (currentView !== 'tract') switchView('tract');
+            geojsonLayer.eachLayer(layer => {
+                if (layer.feature.properties.tract_id === tractId) {
+                    map.fitBounds(layer.getBounds(), { padding: [80, 80] });
+                    layer.openPopup();
+                }
+            });
+        }
+
+        function closeRankedTable() {
+            document.getElementById('ranked-modal').classList.remove('active');
+        }
+
+        // ── URL sharing ───────────────────────────────────────────────────────
+        function encodeState() {
+            const center = map.getCenter();
+            return btoa(JSON.stringify({
+                l:  currentLayer,
+                v:  currentView,
+                wc: weights.coverage,
+                wi: weights.income,
+                wn: weights.nointernet,
+                la: center.lat.toFixed(4),
+                ln: center.lng.toFixed(4),
+                z:  map.getZoom()
+            }));
+        }
+
+        function decodeState(hash) {
+            try {
+                const s = JSON.parse(atob(hash));
+                if (s.wc && s.wi && s.wn) {
+                    weights = { coverage: +s.wc, income: +s.wi, nointernet: +s.wn };
+                    ['coverage', 'income', 'nointernet'].forEach(k => {
+                        document.getElementById(`weight-${k}`).value = weights[k];
+                        document.getElementById(`weight-${k}-val`).textContent = weights[k] + '%';
+                    });
+                    recalculateNeedIndex();
+                }
+                if (s.l)  setLayer(s.l);
+                if (s.v)  switchView(s.v);
+                if (s.la && s.ln && s.z) map.setView([+s.la, +s.ln], +s.z);
+            } catch(e) { /* ignore malformed hash */ }
+        }
+
+        function shareCurrentView(btn) {
+            const hash = encodeState();
+            const url  = `${location.href.split('#')[0]}#${hash}`;
+            navigator.clipboard.writeText(url).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅ Copied!';
+                setTimeout(() => btn.innerHTML = orig, 2000);
+            }).catch(() => {
+                prompt('Copy this link to share the current view:', url);
+            });
+        }
+
+        // ── Boot ──────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async function() {
+            initMap();
+            await loadData();
+            // Decode shared URL state after data is loaded
+            if (location.hash && location.hash.length > 1) {
+                decodeState(location.hash.slice(1));
+            }
+        });
+    </script>
+</body>
+</html>
