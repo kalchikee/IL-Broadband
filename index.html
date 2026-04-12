@@ -1712,8 +1712,7 @@
 
             // Single-feature highlight layer — can never accumulate
             highlightLayer = L.geoJSON(null, {
-                style: { fillOpacity: 0, weight: 2.5, color: '#1a365d', opacity: 1 },
-                renderer: L.canvas()
+                style: { fillOpacity: 0, weight: 2.5, color: '#1a365d', opacity: 1 }
             }).addTo(map);
 
             map.on('movestart zoomstart', () => {
@@ -1890,7 +1889,6 @@
 
             geojsonLayer = L.geoJSON(geojsonData, {
                 style: style,
-                renderer: L.canvas(),
                 onEachFeature: function(feature, layer) {
                     layer.bindPopup(createPopup(feature.properties));
                     layer.on({
@@ -2448,11 +2446,15 @@
             // 5. Wait for tiles + choropleth to paint, then do direct canvas capture
             setTimeout(() => {
                 captureMapCanvas().then(dataUrl => {
+                    const restore = () => map.setMaxBounds([[35.5, -93.5], [44.0, -85.0]]);
                     if (dataUrl) {
-                        document.getElementById('print-map-img').src = dataUrl;
+                        const img = document.getElementById('print-map-img');
+                        img.onload = () => { window.print(); restore(); };
+                        img.src = dataUrl;
+                    } else {
+                        window.print();
+                        restore();
                     }
-                    window.print();
-                    map.setMaxBounds([[35.5, -93.5], [44.0, -85.0]]);
                 });
             }, 900);
         }
@@ -2751,7 +2753,7 @@
                 const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}`
                           + `&format=json&limit=1&countrycodes=us`
                           + `&viewbox=-91.513,42.508,-87.019,36.970&bounded=1`;
-                const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+                const res  = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'IL-Broadband/1.0 (GEOG778 capstone)' } });
                 const data = await res.json();
                 const hit  = data?.[0];
                 if (hit) {
