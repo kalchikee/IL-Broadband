@@ -1713,7 +1713,8 @@
 
             // Single-feature highlight layer — can never accumulate
             highlightLayer = L.geoJSON(null, {
-                style: { fillOpacity: 0, weight: 2.5, color: '#1a365d', opacity: 1 }
+                style: { fillOpacity: 0, weight: 2.5, color: '#1a365d', opacity: 1 },
+                interactive: false
             }).addTo(map);
 
             map.on('movestart zoomstart', () => {
