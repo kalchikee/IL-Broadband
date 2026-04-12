@@ -2708,7 +2708,7 @@
             const geom = feature.geometry;
             const polys = geom.type === 'MultiPolygon' ? geom.coordinates : [geom.coordinates];
             return polys.some(poly =>
-                poly.some((ring, i) => i === 0 ? ringContains(lat, lng, ring) : !ringContains(lat, lng, ring))
+                poly.every((ring, i) => i === 0 ? ringContains(lat, lng, ring) : !ringContains(lat, lng, ring))
             );
         }
 
