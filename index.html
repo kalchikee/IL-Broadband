@@ -2742,6 +2742,9 @@
         // ── Address search (Nominatim) ────────────────────────────────────────
         let searchMarker = null;
 
+        // Illinois bounding box for result validation
+        const IL_BOUNDS = { minLat: 36.97, maxLat: 42.51, minLng: -91.52, maxLng: -87.02 };
+
         async function searchAddress() {
             const query = document.getElementById('search-input').value.trim();
             if (!query) return;
@@ -2749,13 +2752,20 @@
             let latlng = null, label = query;
 
             try {
-                // Nominatim (OpenStreetMap) — free, no token required
+                // Fetch up to 5 results, then pick the first one inside Illinois
                 const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}`
-                          + `&format=json&limit=1&countrycodes=us`
+                          + `&format=json&limit=5&countrycodes=us`
                           + `&viewbox=-91.513,42.508,-87.019,36.970`;
-                const res  = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'IL-Broadband/1.0 (GEOG778 capstone)' } });
+                const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
                 const data = await res.json();
-                const hit  = data?.[0];
+
+                // Pick first result that falls inside Illinois
+                const hit = (data || []).find(r => {
+                    const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
+                    return lat >= IL_BOUNDS.minLat && lat <= IL_BOUNDS.maxLat &&
+                           lon >= IL_BOUNDS.minLng && lon <= IL_BOUNDS.maxLng;
+                });
+
                 if (hit) {
                     latlng = L.latLng(parseFloat(hit.lat), parseFloat(hit.lon));
                     label  = hit.display_name;
@@ -2766,7 +2776,7 @@
             }
 
             if (!latlng) {
-                alert('Address not found. Try including city and state, e.g. "14453 S 88th St, Orland Park, IL".');
+                alert('Address not found in Illinois. Try including city and state, e.g. "1737 S Desplaines St, Chicago, IL".');
                 return;
             }
 
