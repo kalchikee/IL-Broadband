@@ -1866,9 +1866,9 @@
                 document.getElementById('loading').style.display = 'none';
 
                 addGeoJSONLayer();
-                updateStats();
                 populateCountySelect();
                 initCharts();
+                updateStats();          // after initCharts so needChart exists
                 loadCountyLayer();
                 updateLegend();
                 buildCountyRanking();
@@ -2026,6 +2026,8 @@
                 // County view — rebuild choropleth with updated tract averages
                 buildCountyChoropleth();
             }
+            // Refresh statewide stats + donut chart with new need_index values
+            updateStats();
         }
 
         function syncMethodologyDisplay() {
@@ -2316,15 +2318,30 @@
         }
 
         // ── Stats ─────────────────────────────────────────────────────────────
+        // Compute live statewide stats from geojsonData so counts always match
+        // the actual tracts on the map (summary_stats.json can drift from data)
         function updateStats() {
-            document.getElementById('stat-tracts').textContent =
-                summaryStats.total_tracts.toLocaleString();
-            document.getElementById('stat-high-need').textContent =
-                summaryStats.high_need_tracts.toLocaleString();
-            document.getElementById('stat-underserved').textContent =
-                (summaryStats.underserved_population / 1000000).toFixed(1) + 'M';
-            document.getElementById('stat-coverage').textContent =
-                summaryStats.avg_coverage + '%';
+            if (!geojsonData || !geojsonData.features) return;
+            const features = geojsonData.features;
+            const total      = features.length;
+            const highNeed   = features.filter(f => f.properties.need_index >= 60).length;
+            const medNeed    = features.filter(f => f.properties.need_index >= 40 && f.properties.need_index < 60).length;
+            const lowNeed    = features.filter(f => f.properties.need_index >= 20 && f.properties.need_index < 40).length;
+            const adequate   = features.filter(f => f.properties.need_index < 20).length;
+            const underserved = features.reduce((s, f) =>
+                f.properties.coverage_pct < 80 ? s + f.properties.population : s, 0);
+            const avgCov      = features.reduce((s, f) => s + f.properties.coverage_pct, 0) / total;
+
+            document.getElementById('stat-tracts').textContent      = total.toLocaleString();
+            document.getElementById('stat-high-need').textContent   = highNeed.toLocaleString();
+            document.getElementById('stat-underserved').textContent = (underserved / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-coverage').textContent    = avgCov.toFixed(1) + '%';
+
+            // Refresh donut chart with live need-level counts
+            if (needChart) {
+                needChart.data.datasets[0].data = [highNeed, medNeed, lowNeed, adequate];
+                needChart.update();
+            }
         }
 
         function updateFilteredStats() {
