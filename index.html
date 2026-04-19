@@ -1796,7 +1796,7 @@
         function createPopup(p) {
             const needClass      = p.need_index >= 60 ? 'high' : p.need_index >= 40 ? 'medium' : 'low';
             const coverageClass  = p.coverage_pct < 50 ? 'high' : p.coverage_pct < 75 ? 'medium' : 'low';
-            const povertyDisplay = p.poverty_pct > 0 ? `${p.poverty_pct}%` : 'N/A';
+            const povertyDisplay = (p.poverty_pct !== null && p.poverty_pct !== undefined) ? `${p.poverty_pct}%` : 'N/A';
             const isSelected     = selectedTractIds.has(p.tract_id);
             const btnClass       = isSelected ? 'popup-select-btn selected' : 'popup-select-btn';
             const btnLabel       = isSelected ? '✓ Added to export — click to remove' : '+ Add to export selection';
@@ -1805,9 +1805,12 @@
                 : p.reliability === 'moderate'
                 ? '<span class="reliability-badge moderate">Mod. sample size</span>'
                 : '';
+            const changeLabel = p.change_imputed
+                ? 'Change No Internet (2019→2024, est.)'
+                : 'Change No Internet (2019→2024)';
             const changeRow = p.change_no_internet !== null && p.change_no_internet !== undefined
                 ? `<div class="popup-stat">
-                        <span class="popup-stat-label">Change No Internet (2019→2024)</span>
+                        <span class="popup-stat-label">${changeLabel}</span>
                         <span class="popup-stat-value ${p.change_no_internet > 2 ? 'high' : p.change_no_internet < -2 ? 'low' : ''}">${p.change_no_internet > 0 ? '+' : ''}${p.change_no_internet}%</span>
                     </div>`
                 : '';
@@ -2733,7 +2736,11 @@
                         p.need_index, p.area_type,
                         weights.coverage, weights.income, weights.nointernet];
             });
-            const csv  = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const esc = v => {
+                const s = v === null || v === undefined ? '' : String(v);
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            };
+            const csv  = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
             const blob = new Blob([csv], { type: 'text/csv' });
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
