@@ -365,6 +365,29 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        .chart-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .chart-expand-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-gray);
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .chart-expand-btn:hover {
+            background: var(--bg-light);
+            color: var(--primary-dark);
+        }
+
         .chart-title {
             font-size: 13px;
             font-weight: 600;
@@ -1412,7 +1435,10 @@
 
             <!-- Scatter Plot -->
             <div class="chart-container">
-                <div class="chart-title">🔵 Income vs. Coverage (by Tract)</div>
+                <div class="chart-title-row">
+                    <div class="chart-title" style="margin-bottom:0;">🔵 Income vs. Coverage (by Tract)</div>
+                    <button class="chart-expand-btn" onclick="openScatterModal()">⤢ Expand</button>
+                </div>
                 <div class="chart-wrapper" style="height:200px;">
                     <canvas id="scatter-chart"></canvas>
                 </div>
@@ -1583,6 +1609,28 @@
         </div>
     </div>
 
+    <!-- Scatter Plot Modal -->
+    <div class="modal-overlay" id="scatter-modal">
+        <div class="modal" style="width:900px;max-width:95vw;max-height:90vh;">
+            <div class="modal-header">
+                <h2>🔵 Income vs. Coverage — All Illinois Tracts</h2>
+                <button class="modal-close" onclick="closeScatterModal()">×</button>
+            </div>
+            <div class="modal-body" style="max-height:none;padding:16px 20px;">
+                <div style="font-size:12px;color:var(--text-gray);margin-bottom:12px;">
+                    Each dot is one census tract. Color = need level
+                    (<span style="color:#e53e3e;font-weight:600;">High</span>,
+                    <span style="color:#ed8936;font-weight:600;">Medium</span>,
+                    <span style="color:#38a169;font-weight:600;">Low/Adequate</span>).
+                    Hover to see details; click to jump to the tract on the map.
+                </div>
+                <div style="height:calc(90vh - 200px);min-height:400px;">
+                    <canvas id="scatter-modal-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Export Modal -->
     <div class="modal-overlay" id="export-modal">
         <div class="modal">
@@ -1609,7 +1657,8 @@
         // ── Global state ──────────────────────────────────────────────────────
         let map, geojsonLayer, countyLayer, geojsonData, summaryStats;
         let currentLayer = 'need_index';
-        let coverageChart, needChart;
+        let coverageChart, needChart, scatterChart;
+        let scatterPoints = [];
         let showCounties = true;
         let mapAnimating = false;
         let highlightLayer = null;
@@ -2422,33 +2471,100 @@
                 }
             });
 
-            // Scatter plot — income vs coverage
-            const scatterPts = geojsonData.features.map(f => ({
+            // Scatter plot — income vs coverage (store feature ref on each point)
+            scatterPoints = geojsonData.features.map(f => ({
                 x: f.properties.median_income,
-                y: f.properties.coverage_pct
+                y: f.properties.coverage_pct,
+                feature: f
             }));
             const scatterColors = geojsonData.features.map(f =>
                 f.properties.need_index >= 60 ? 'rgba(229,62,62,0.55)' :
                 f.properties.need_index >= 40 ? 'rgba(237,137,54,0.55)' :
                                                 'rgba(56,161,105,0.45)'
             );
-            new Chart(document.getElementById('scatter-chart').getContext('2d'), {
+            scatterChart = new Chart(document.getElementById('scatter-chart').getContext('2d'), {
                 type: 'scatter',
-                data: { datasets: [{ data: scatterPts, backgroundColor: scatterColors, pointRadius: 2.5, pointHoverRadius: 4 }] },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: c => `$${c.parsed.x.toLocaleString()} | ${c.parsed.y}% coverage` } }
-                    },
-                    scales: {
-                        x: { title: { display: true, text: 'Median Income ($)', font: { size: 10 } }, grid: { color: '#e2e8f0' },
-                             ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { size: 9 } } },
-                        y: { title: { display: true, text: 'Coverage %', font: { size: 10 } },
-                             min: 0, max: 100, grid: { color: '#e2e8f0' }, ticks: { font: { size: 9 } } }
-                    }
-                }
+                data: { datasets: [{ data: scatterPoints, backgroundColor: scatterColors, pointRadius: 2.5, pointHoverRadius: 5 }] },
+                options: buildScatterOptions(10, 9)
             });
+        }
+
+        // Chart.js options for the scatter plot, re-used for both sidebar and modal
+        function buildScatterOptions(titleSize, tickSize) {
+            const featureFromCtx = ctx => scatterPoints[ctx.dataIndex]?.feature;
+            return {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => {
+                                const f = featureFromCtx(items[0]);
+                                if (!f) return '';
+                                const p = f.properties;
+                                return `${p.county} County — Tract ${p.tract_id}`;
+                            },
+                            label: ctx => {
+                                const f = featureFromCtx(ctx);
+                                if (!f) return '';
+                                const p = f.properties;
+                                return [
+                                    `Median Income: $${p.median_income.toLocaleString()}`,
+                                    `Coverage: ${p.coverage_pct}%`,
+                                    `Need Index: ${p.need_index}`,
+                                    `Area: ${p.area_type}`,
+                                    `Population: ${p.population.toLocaleString()}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                onClick: (e, elements) => {
+                    if (!elements.length) return;
+                    const idx = elements[0].index;
+                    const f = scatterPoints[idx]?.feature;
+                    if (!f) return;
+                    closeScatterModal();
+                    if (currentView !== 'tract') switchView('tract');
+                    if (geojsonLayer) {
+                        geojsonLayer.eachLayer(layer => {
+                            if (layer.feature.properties.tract_id === f.properties.tract_id) {
+                                map.flyToBounds(layer.getBounds(), { padding: [100, 100], maxZoom: 12 });
+                                setTimeout(() => layer.openPopup(), 500);
+                            }
+                        });
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Median Income ($)', font: { size: titleSize } }, grid: { color: '#e2e8f0' },
+                         ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { size: tickSize } } },
+                    y: { title: { display: true, text: 'Coverage %', font: { size: titleSize } },
+                         min: 0, max: 100, grid: { color: '#e2e8f0' }, ticks: { font: { size: tickSize } } }
+                }
+            };
+        }
+
+        // Expanded scatter plot modal
+        let scatterModalChart = null;
+        function openScatterModal() {
+            document.getElementById('scatter-modal').classList.add('active');
+            const ctx = document.getElementById('scatter-modal-chart').getContext('2d');
+            if (scatterModalChart) scatterModalChart.destroy();
+            const scatterColors = geojsonData.features.map(f =>
+                f.properties.need_index >= 60 ? 'rgba(229,62,62,0.65)' :
+                f.properties.need_index >= 40 ? 'rgba(237,137,54,0.65)' :
+                                                'rgba(56,161,105,0.55)'
+            );
+            scatterModalChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: [{ data: scatterPoints, backgroundColor: scatterColors, pointRadius: 4, pointHoverRadius: 7 }] },
+                options: buildScatterOptions(13, 12)
+            });
+        }
+
+        function closeScatterModal() {
+            document.getElementById('scatter-modal').classList.remove('active');
+            if (scatterModalChart) { scatterModalChart.destroy(); scatterModalChart = null; }
         }
 
         // ── County Ranking ────────────────────────────────────────────────────
