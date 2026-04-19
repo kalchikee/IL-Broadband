@@ -2080,6 +2080,13 @@
             }
             // Refresh statewide stats + donut chart with new need_index values
             updateStats();
+            // Refresh county ranking panel (averages change with new weights)
+            buildCountyRanking();
+            // If the ranked-tracts modal is open, re-render it with new need_index values
+            const rankedModal = document.getElementById('ranked-modal');
+            if (rankedModal && rankedModal.classList.contains('active')) {
+                showRankedTable();
+            }
         }
 
         function syncMethodologyDisplay() {
@@ -2245,7 +2252,7 @@
                             </div>`, e.originalEvent);
                         },
                         mousemove: function(e) { moveTooltip(e.originalEvent); },
-                        mouseout:  function(e) { countyChoroLayer.resetStyle(e.target); hideTooltip(); }
+                        mouseout:  function(e) { if (countyChoroLayer) countyChoroLayer.resetStyle(e.target); hideTooltip(); }
                     });
                 }
             }).addTo(map);
@@ -2785,6 +2792,9 @@
             const select = document.getElementById('county-select');
             select.value = countyName;
 
+            // Apply the filter so the map dims non-matching tracts
+            if (currentView === 'tract') applyFilters();
+
             // Close the popup
             map.closePopup();
 
@@ -3111,12 +3121,17 @@
             try {
                 const s = JSON.parse(atob(hash));
                 if (s.wc && s.wi && s.wn) {
-                    weights = { coverage: +s.wc, income: +s.wi, nointernet: +s.wn };
-                    ['coverage', 'income', 'nointernet'].forEach(k => {
-                        document.getElementById(`weight-${k}`).value = weights[k];
-                        document.getElementById(`weight-${k}-val`).textContent = weights[k] + '%';
-                    });
-                    recalculateNeedIndex();
+                    const wc = +s.wc, wi = +s.wi, wn = +s.wn;
+                    // Validate: each 10-70, sum exactly 100 (matches UI constraints)
+                    const inRange = v => v >= 10 && v <= 70;
+                    if (inRange(wc) && inRange(wi) && inRange(wn) && (wc + wi + wn) === 100) {
+                        weights = { coverage: wc, income: wi, nointernet: wn };
+                        ['coverage', 'income', 'nointernet'].forEach(k => {
+                            document.getElementById(`weight-${k}`).value = weights[k];
+                            document.getElementById(`weight-${k}-val`).textContent = weights[k] + '%';
+                        });
+                        recalculateNeedIndex();
+                    }
                 }
                 if (s.l)  setLayer(s.l);
                 if (s.v)  switchView(s.v);
@@ -3144,6 +3159,34 @@
             if (location.hash && location.hash.length > 1) {
                 decodeState(location.hash.slice(1));
             }
+
+            // Close any open modal on Escape key
+            document.addEventListener('keydown', e => {
+                if (e.key !== 'Escape') return;
+                const modals = {
+                    'about-modal':   closeAbout,
+                    'ranked-modal':  closeRankedTable,
+                    'export-modal':  closeExportModal,
+                    'scatter-modal': closeScatterModal
+                };
+                Object.entries(modals).forEach(([id, closer]) => {
+                    const m = document.getElementById(id);
+                    if (m && m.classList.contains('active')) closer();
+                });
+            });
+
+            // Close modal when clicking the dark overlay (not the inner dialog)
+            ['about-modal', 'ranked-modal', 'export-modal', 'scatter-modal'].forEach(id => {
+                const m = document.getElementById(id);
+                if (!m) return;
+                m.addEventListener('click', e => {
+                    if (e.target !== m) return; // only fire on the overlay itself
+                    if (id === 'about-modal')   closeAbout();
+                    if (id === 'ranked-modal')  closeRankedTable();
+                    if (id === 'export-modal')  closeExportModal();
+                    if (id === 'scatter-modal') closeScatterModal();
+                });
+            });
         });
     </script>
 </body>
