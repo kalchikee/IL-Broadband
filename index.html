@@ -1324,10 +1324,10 @@
                 <div class="filter-group">
                     <div class="filter-label">
                         <span>Max Income</span>
-                        <span class="filter-value" id="income-value">$150,000</span>
+                        <span class="filter-value" id="income-value">No limit</span>
                     </div>
-                    <input type="range" class="filter-slider" id="income-filter" 
-                           min="20000" max="150000" value="150000" step="5000" oninput="updateFilter()">
+                    <input type="range" class="filter-slider" id="income-filter"
+                           min="20000" max="250000" value="250000" step="5000" oninput="updateFilter()">
                 </div>
 
                 <div class="filter-group">
@@ -2244,17 +2244,21 @@
         // ── Filters ───────────────────────────────────────────────────────────
         function updateFilter() {
             const coverageVal = document.getElementById('coverage-filter').value;
-            const incomeVal   = document.getElementById('income-filter').value;
+            const incomeVal   = parseInt(document.getElementById('income-filter').value);
+            const incomeMax   = parseInt(document.getElementById('income-filter').max);
             const needVal     = document.getElementById('need-filter').value;
             document.getElementById('coverage-value').textContent = `${coverageVal}%`;
-            document.getElementById('income-value').textContent   = `$${parseInt(incomeVal).toLocaleString()}`;
+            document.getElementById('income-value').textContent   = incomeVal >= incomeMax ? 'No limit' : `$${incomeVal.toLocaleString()}`;
             document.getElementById('need-value').textContent     = needVal;
             applyFilters();
         }
 
         function applyFilters() {
             const minCoverage = parseInt(document.getElementById('coverage-filter').value);
-            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const incomeEl    = document.getElementById('income-filter');
+            const incomeVal   = parseInt(incomeEl.value);
+            const incomeMax   = parseInt(incomeEl.max);
+            const maxIncome   = incomeVal >= incomeMax ? Infinity : incomeVal;
             const minNeed     = parseInt(document.getElementById('need-filter').value);
             const county      = document.getElementById('county-select').value;
             if (!geojsonLayer) return;
@@ -2325,7 +2329,10 @@
 
         function updateFilteredStats() {
             const minCoverage = parseInt(document.getElementById('coverage-filter').value);
-            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const incomeEl    = document.getElementById('income-filter');
+            const incomeVal   = parseInt(incomeEl.value);
+            const incomeMax   = parseInt(incomeEl.max);
+            const maxIncome   = incomeVal >= incomeMax ? Infinity : incomeVal;
             const minNeed     = parseInt(document.getElementById('need-filter').value);
             const county      = document.getElementById('county-select').value;
             const filtered    = geojsonData.features.filter(f => {
@@ -2672,7 +2679,10 @@
             }
             // Otherwise use the panel filters
             const minCoverage = parseInt(document.getElementById('coverage-filter').value);
-            const maxIncome   = parseInt(document.getElementById('income-filter').value);
+            const incomeEl    = document.getElementById('income-filter');
+            const incomeVal   = parseInt(incomeEl.value);
+            const incomeMax   = parseInt(incomeEl.max);
+            const maxIncome   = incomeVal >= incomeMax ? Infinity : incomeVal;
             const minNeed     = parseInt(document.getElementById('need-filter').value);
             const county      = document.getElementById('county-select').value;
             return geojsonData.features.filter(f => {
