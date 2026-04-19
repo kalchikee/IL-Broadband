@@ -1620,6 +1620,9 @@
         // Individual tract export selection
         let selectedTractIds = new Set();
 
+        // Currently-highlighted tract from address search (so it can be cleared)
+        let searchHighlightLayer = null;
+
         // ── Color scales ──────────────────────────────────────────────────────
         const colorScales = {
             need_index: {
@@ -1734,7 +1737,7 @@
         // ── Color helpers ─────────────────────────────────────────────────────
         function getColor(value, layer) {
             const scale = getActiveScales()[layer] || getActiveScales().need_index;
-            if (value === null || value === undefined) return '#cccccc';
+            if (value === null || value === undefined || Number.isNaN(value)) return '#cccccc';
             for (let i = scale.breaks.length - 1; i >= 0; i--) {
                 if (value >= scale.breaks[i]) return scale.colors[Math.min(i, scale.colors.length - 1)];
             }
@@ -1987,9 +1990,7 @@
                 if (geojsonLayer) {
                     geojsonLayer.eachLayer(layer => {
                         layer.setPopupContent(createPopup(layer.feature.properties));
-                        layer.setTooltipContent(createTooltip(layer.feature.properties));
                     });
-                    if (currentLayer === 'need_index') geojsonLayer.setStyle(style);
                 }
                 applyFilters();
             } else {
@@ -2031,10 +2032,15 @@
             if (view === 'tract') {
                 // County view → Tract view: remove county choropleth, show tracts only
                 if (countyChoroLayer) { map.removeLayer(countyChoroLayer); countyChoroLayer = null; }
-                if (geojsonLayer) geojsonLayer.addTo(map);
+                if (geojsonLayer) {
+                    geojsonLayer.addTo(map);
+                    applyFilters();
+                }
             } else {
                 // Tract view → County view: remove tracts, show county choropleth only
                 if (geojsonLayer) map.removeLayer(geojsonLayer);
+                if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+                searchHighlightLayer = null;
                 buildCountyChoropleth();
             }
         }
@@ -2184,7 +2190,7 @@
                 layer === 'need_index' ? 'block' : 'none';
             updateLegend();
             if (currentView === 'tract') {
-                if (geojsonLayer) geojsonLayer.setStyle(style);
+                if (geojsonLayer) applyFilters();
             } else {
                 buildCountyChoropleth();
             }
@@ -2229,9 +2235,27 @@
                                 p.median_income <= maxIncome &&
                                 p.need_index    >= minNeed &&
                                 (county === '' || p.county === county);
-                layer.setStyle(visible
-                    ? { fillOpacity: 0.75, opacity: 1 }
-                    : { fillOpacity: 0.05, opacity: 0.2 });
+
+                // Preserve export-selection highlight for selected tracts
+                if (selectedTractIds.has(p.tract_id)) {
+                    layer.setStyle({
+                        fillColor: getColor(getValue(p), currentLayer),
+                        weight: 2.5,
+                        color: '#ed8936',
+                        fillOpacity: visible ? 0.95 : 0.3,
+                        opacity: visible ? 1 : 0.4
+                    });
+                } else {
+                    // Preserve search highlight only if this is the currently-searched tract
+                    const isSearchHit = (layer === searchHighlightLayer);
+                    layer.setStyle({
+                        fillColor: getColor(getValue(p), currentLayer),
+                        weight: isSearchHit ? 3 : 0.5,
+                        color: isSearchHit ? '#ed8936' : '#718096',
+                        fillOpacity: visible ? (isSearchHit ? 0.95 : 0.75) : 0.05,
+                        opacity: visible ? 1 : 0.2
+                    });
+                }
             });
             updateFilteredStats();
         }
@@ -2549,30 +2573,26 @@
                 selectedTractIds.add(tractId);
             }
 
-            // Update the tract's popup content and highlight style
+            // Refresh popup button labels
             geojsonLayer.eachLayer(layer => {
                 if (layer.feature.properties.tract_id === tractId) {
                     layer.setPopupContent(createPopup(layer.feature.properties));
-                    if (selectedTractIds.has(tractId)) {
-                        layer.setStyle({ weight: 2.5, color: '#ed8936', fillOpacity: 0.95 });
-                    } else {
-                        geojsonLayer.resetStyle(layer);
-                    }
                 }
             });
 
+            // applyFilters now handles highlighting selected tracts and respects filters
+            applyFilters();
             updateSelectionBar();
         }
 
         function clearTractSelection() {
             selectedTractIds.clear();
-            // Reset all tract styles and popup buttons
             if (geojsonLayer) {
                 geojsonLayer.eachLayer(layer => {
-                    geojsonLayer.resetStyle(layer);
                     layer.setPopupContent(createPopup(layer.feature.properties));
                 });
             }
+            applyFilters();
             updateSelectionBar();
         }
 
@@ -2737,7 +2757,7 @@
             btn.textContent = colorblindMode ? '👁 Normal Colors' : '👁 Colorblind';
             updateLegend();
             if (currentView === 'tract') {
-                if (geojsonLayer) geojsonLayer.setStyle(style);
+                if (geojsonLayer) applyFilters();
             } else {
                 buildCountyChoropleth();
             }
@@ -2796,6 +2816,11 @@
                 return;
             }
 
+            // Clear previous search highlight (restore its proper style)
+            const previousHighlight = searchHighlightLayer;
+            searchHighlightLayer = null;
+            if (previousHighlight) applyFilters();
+
             if (searchMarker) map.removeLayer(searchMarker);
             searchMarker = L.circleMarker(latlng, {
                 radius: 10, color: '#ed8936', fillColor: '#ed8936',
@@ -2812,7 +2837,8 @@
                     }
                 });
                 if (found) {
-                    found.setStyle({ weight: 3, color: '#ed8936', fillOpacity: 0.95 });
+                    searchHighlightLayer = found;
+                    applyFilters();  // re-runs with the new highlight reference
                     found.openPopup();
                 }
             }
