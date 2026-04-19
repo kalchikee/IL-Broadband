@@ -1861,6 +1861,8 @@
                 geojsonData  = await geoRes.json();
                 summaryStats = await statsRes.json();
 
+                imputeMissingData();
+
                 document.getElementById('loading').style.display = 'none';
 
                 addGeoJSONLayer();
@@ -1875,6 +1877,33 @@
                 console.error('Error loading data:', error);
                 document.getElementById('loading').innerHTML = '<div style="color:#e53e3e;">Error loading data</div>';
             }
+        }
+
+        // ── Impute missing data ───────────────────────────────────────────────
+        // 296 tracts lack 2019 data (tract boundaries redrawn after 2020 Census).
+        // Fill their change_no_internet with the county average so they aren't blank.
+        function imputeMissingData() {
+            if (!geojsonData) return;
+            const byCounty = {};
+            const all = [];
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                if (p.change_no_internet !== null && p.change_no_internet !== undefined) {
+                    (byCounty[p.county] = byCounty[p.county] || []).push(p.change_no_internet);
+                    all.push(p.change_no_internet);
+                }
+            });
+            const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+            const countyAvg = {};
+            Object.entries(byCounty).forEach(([c, arr]) => { countyAvg[c] = avg(arr); });
+            const stateAvg = avg(all);
+            geojsonData.features.forEach(f => {
+                const p = f.properties;
+                if (p.change_no_internet === null || p.change_no_internet === undefined) {
+                    p.change_no_internet = Math.round((countyAvg[p.county] ?? stateAvg) * 10) / 10;
+                    p.change_imputed = true;
+                }
+            });
         }
 
         // ── County boundary layer ─────────────────────────────────────────────
@@ -2252,8 +2281,8 @@
                         fillColor: getColor(getValue(p), currentLayer),
                         weight: isSearchHit ? 3 : 0.5,
                         color: isSearchHit ? '#ed8936' : '#718096',
-                        fillOpacity: visible ? (isSearchHit ? 0.95 : 0.75) : 0.05,
-                        opacity: visible ? 1 : 0.2
+                        fillOpacity: visible ? (isSearchHit ? 0.95 : 0.75) : 0.3,
+                        opacity: visible ? 1 : 0.5
                     });
                 }
             });
